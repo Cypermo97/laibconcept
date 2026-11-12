@@ -1111,7 +1111,7 @@ let current = 'rechts';
 function viewPose(name){
   const v = VIEWS[name], tan = Math.tan(THREE.MathUtils.degToRad(camera.fov/2));
   const asp = (isFinite(camera.aspect) && camera.aspect > 0) ? camera.aspect : 1.6;
-  const dist = Math.max(v.hw/(tan*asp), v.hh/tan) * 1.06 + 40;
+  const dist = Math.max(v.hw/(tan*asp), v.hh/tan) * 1.17 + 40;
   const target = V(...v.t);
   return { pos: target.clone().addScaledVector(V(...v.d).normalize(), dist), target };
 }
