@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#E6E6DD">
+<title>LAIBconcept – Tresen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Instrument+Serif:ital@1&family=Roboto+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#E6E6DD; --ink:#161615; --muted:#6c6b64; --line:rgba(22,22,21,.14);
+    --card:rgba(236,236,229,.93); --accent:#161615;
+    --anton:'Anton', Impact, 'Arial Narrow', sans-serif;
+    --mono:'Roboto Mono', ui-monospace, Menlo, Consolas, monospace;
+    --serif:'Instrument Serif', 'Times New Roman', serif;
+    --hdr:58px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);font-family:var(--mono);color:var(--ink);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+  button,select{font-family:inherit}
+  #stage{position:fixed;inset:0}
+  #stage canvas{display:block;touch-action:none}
+  #labels{position:fixed;inset:0;pointer-events:none}
+
+  /* ---------- Intro: Logo erscheint und verschwindet ---------- */
+  #intro{position:fixed;inset:0;z-index:100;background:var(--bg);display:grid;place-items:center;cursor:pointer;transition:opacity .8s ease .15s, visibility 1s}
+  #intro .logo-svg{width:min(64vw,540px);height:auto;color:var(--ink);overflow:visible;transition:transform 1s cubic-bezier(.6,0,.2,1), opacity .55s ease}
+  #intro .ch, #intro .concept{transform-box:fill-box;opacity:0}
+  #intro.go .ch{animation:introUp .95s cubic-bezier(.16,.84,.24,1) both;animation-delay:calc(.15s + var(--i) * .08s)}
+  #intro.go .concept{animation:introIn 1s cubic-bezier(.16,.84,.24,1) .75s both}
+  #intro.out{opacity:0;visibility:hidden}
+  #intro.out .logo-svg{transform:translateY(-14px) scale(.96);opacity:0}
+  @keyframes introUp{from{transform:translateY(70px);opacity:0}to{transform:none;opacity:1}}
+  @keyframes introIn{from{transform:translateX(-26px);opacity:0}to{transform:none;opacity:1}}
+  @media (prefers-reduced-motion: reduce){ #intro.go .ch, #intro.go .concept{animation-duration:.01s;animation-delay:0s} }
+
+  /* ---------- Kopfzeile + Navigation ---------- */
+  #site{position:fixed;left:0;right:0;top:0;height:var(--hdr);z-index:50;display:flex;align-items:center;gap:28px;padding:0 22px;
+        background:rgba(230,230,221,.9);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  #site .logo{display:block;color:var(--ink);line-height:0;flex:none}
+  #site .logo .logo-svg{height:26px;width:auto}
+  #nav{display:flex;gap:2px;margin-left:auto;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  #nav::-webkit-scrollbar{display:none}
+  #nav a{font:500 12px/1 var(--mono);text-transform:uppercase;letter-spacing:.09em;color:var(--ink);text-decoration:none;padding:10px 13px;border-radius:999px;white-space:nowrap;opacity:.6;transition:opacity .2s, background .2s, color .2s}
+  #nav a:hover{opacity:1}
+  #nav a.on{opacity:1;background:var(--ink);color:var(--bg)}
+  #nav a .n{opacity:.5;margin-right:7px}
+
+  /* ---------- Leere Bereiche ---------- */
+  .page{position:fixed;left:0;right:0;bottom:0;top:var(--hdr);z-index:40;background:var(--bg);display:none;flex-direction:column;overflow:auto;padding:22px clamp(20px,5vw,72px) clamp(26px,6vh,64px)}
+  body[data-sec="gastraum"] #pg-gastraum, body[data-sec="sanitaer"] #pg-sanitaer, body[data-sec="aussenbereich"] #pg-aussenbereich, body[data-sec="kueche"] #pg-kueche{display:flex}
+  .page .row{display:flex;justify-content:space-between;font:500 11.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;border-top:1.5px solid var(--ink);padding-top:12px}
+  .page h1{margin:auto 0 0;font:400 clamp(60px,15.5vw,240px)/.84 var(--anton);text-transform:uppercase;letter-spacing:-.004em}
+  .page .note{font:italic 400 clamp(22px,2.6vw,34px)/1.1 var(--serif);color:var(--muted);margin-top:16px}
+  body[data-sec]:not([data-sec="tresen"]) #walkhud{display:none!important}
+
+  /* ---------- 3D-Beschriftungen ---------- */
+  .lbl{font:500 12px/1.25 var(--mono);background:rgba(255,255,253,.96);color:var(--ink);
+       padding:6px 10px 6px 9px;border-radius:3px;box-shadow:0 3px 12px rgba(22,22,21,.18);white-space:nowrap;
+       border-left:4px solid var(--c)}
+  .lbl b{font-weight:700}
+  .lblwrap{position:relative}
+  .lblwrap .stem{position:absolute;left:50%;bottom:0;width:1.5px;height:0;background:rgba(22,22,21,.6);transform:translateX(-50%)}
+  .lbl .m{display:block;font-weight:400;font-size:10.5px;color:var(--muted);margin-top:2px}
+  body.nomodel .lbl .m, body.planview .lbl .m{display:none}
+  .lbl.small{font-size:11px;padding:4px 8px 4px 7px;border-left-width:3px;background:rgba(255,255,253,.92)}
+  .lbl.small .m{font-size:10px}
+  body.nosmall .lbl.small{display:none}
+  .seq{margin:6px 0;line-height:1.55}
+  .lbl.unit{background:rgba(22,22,21,.86);color:#efefe8;border-left-color:#a9a8a0;font-size:11px;font-weight:500}
+  .lbl.unit .m{color:#c3c2ba}
+  .dim{font:500 10.5px/1 var(--mono);background:rgba(255,255,253,.95);color:var(--c);padding:3px 5px;border-radius:2px;
+       box-shadow:0 1px 4px rgba(0,0,0,.14);white-space:nowrap}
+  .dim.gap{color:#7a7972;font-weight:400;background:rgba(255,255,253,.82)}
+  .dim.total{font-size:12px;padding:5px 8px;color:var(--ink);font-weight:700}
+  .dim.grand{background:var(--ink);color:var(--bg)}
+
+  /* ---------- Bedienung Tresen ---------- */
+  .card{background:var(--card);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:4px;box-shadow:0 8px 28px rgba(22,22,21,.10)}
+  #head{position:fixed;left:16px;top:calc(var(--hdr) + 14px);padding:15px 18px 14px;max-width:min(390px,calc(100vw - 32px))}
+  #head .eyebrow{font:500 10.5px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  #head h1{margin:8px 0 7px;font:400 30px/1 var(--anton);text-transform:uppercase;letter-spacing:.004em}
+  #head p{margin:0;font-size:11.5px;line-height:1.6;color:var(--muted)}
+  #head p b{color:var(--ink);font-weight:500}
+
+  #views{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:2px;padding:4px;max-width:calc(100vw - 24px);overflow-x:auto;scrollbar-width:none}
+  #views::-webkit-scrollbar{display:none}
+  #views button{all:unset;cursor:pointer;padding:10px 12px;border-radius:3px;font:500 11px/1 var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+  #views button:hover{color:var(--ink);background:rgba(22,22,21,.06)}
+  #views button.on{background:var(--ink);color:var(--bg)}
+  #views button.walk{color:var(--ink);font-weight:700;box-shadow:inset 0 0 0 1.5px var(--ink);margin-right:6px}
+  #views button.walk:hover{background:var(--ink);color:var(--bg)}
+
+  #opts{position:fixed;right:16px;top:calc(var(--hdr) + 14px);padding:0;font-size:11.5px;min-width:250px;max-height:calc(100vh - var(--hdr) - 90px);overflow:auto}
+  #opts .optsHead{all:unset;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:16px;width:100%;box-sizing:border-box;padding:11px 14px;font:500 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase}
+  #opts .optsHead i{font-style:normal;font-size:15px;line-height:10px}
+  #opts .optsBody{display:flex;flex-direction:column;gap:7px;padding:2px 14px 13px}
+  #opts.closed .optsBody{display:none}
+  #opts .sel{display:grid;grid-template-columns:50px 1fr;align-items:center;gap:8px}
+  #opts .sel select{width:100%}
+  #opts .row{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+  #opts input{accent-color:var(--ink);margin:0}
+  #opts select{font:inherit;font-size:11.5px;padding:5px 6px;border-radius:3px;border:1px solid var(--line);background:#fbfbf8;color:var(--ink)}
+  #opts .sep{height:1px;background:var(--line);margin:3px 0}
+  .btn{all:unset;cursor:pointer;text-align:center;padding:9px 10px;border-radius:3px;font:500 11px/1 var(--mono);letter-spacing:.07em;text-transform:uppercase;background:rgba(22,22,21,.07)}
+  .btn:hover{background:rgba(22,22,21,.13)}
+  .btn.dark{background:var(--ink);color:var(--bg)}
+  .btn.dark:hover{background:#34332f}
+
+  #info{position:fixed;left:16px;top:calc(var(--hdr) + 14px);bottom:80px;width:min(450px,calc(100vw - 32px));padding:0;display:none;overflow:hidden;flex-direction:column;z-index:3}
+  #info.open{display:flex}
+  #info header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)}
+  #info header h2{margin:0;font:400 20px/1 var(--anton);text-transform:uppercase;letter-spacing:.01em}
+  #info .body{overflow:auto;padding:4px 16px 16px;font-size:11.5px;line-height:1.5}
+  #info h3{font:500 10.5px/1.2 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink);margin:18px 0 6px}
+  table{border-collapse:collapse;width:100%}
+  td,th{padding:5px 4px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  th{font-size:10px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.08em}
+  td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  tr.gap td{color:#8f8e86}
+  .sw{display:inline-block;width:9px;height:9px;border-radius:1px;margin-right:6px;vertical-align:baseline}
+  #info a{color:var(--ink)}
+  #info ul{margin:4px 0 0;padding-left:18px}
+  #info li{margin:4px 0;color:#43423d}
+  .sum{display:flex;gap:10px;margin-top:8px}
+  .sum div{flex:1;background:rgba(22,22,21,.05);border-radius:3px;padding:7px 9px}
+  .sum b{display:block;font-size:14px}
+  .sum span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+
+  #caption{position:fixed;left:18px;bottom:16px;padding:9px 14px;font-size:11.5px;display:none}
+  #caption b{font-weight:700}
+  #restore{position:fixed;right:10px;bottom:10px;opacity:0;transition:opacity .2s;display:none}
+  #restore:hover{opacity:1}
+  body.present #head, body.present #views, body.present #opts, body.present #info{display:none!important}
+  body.present #caption, body.present #restore{display:block}
+
+  #loading{position:fixed;inset:0;display:grid;place-items:center;font:500 12px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--bg);transition:opacity .5s}
+  #loading.hide{opacity:0;pointer-events:none}
+
+  /* ---------- Rundgang ---------- */
+  #walkhud{display:none}
+  body.walking #walkhud{display:block}
+  body.walking #head, body.walking #views, body.walking #caption, body.walking #info{display:none!important}
+  #walkbar{position:fixed;top:calc(var(--hdr) + 14px);left:50%;transform:translateX(-50%);display:flex;gap:2px;padding:4px;z-index:5;max-width:calc(100vw - 20px);overflow-x:auto;scrollbar-width:none}
+  #walkbar::-webkit-scrollbar{display:none}
+  #walkbar button{all:unset;cursor:pointer;padding:10px 12px;border-radius:3px;font:500 11px/1 var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+  #walkbar button:hover{color:var(--ink);background:rgba(22,22,21,.06)}
+  #walkbar button.on{color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink)}
+  #walkbar button.exit{background:var(--ink);color:var(--bg);margin-left:4px}
+  #walkhint{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);padding:10px 16px;font-size:11.5px;line-height:1.7;text-align:center;transition:opacity .7s;max-width:calc(100vw - 340px);z-index:5}
+  #walkhint b{font-weight:700}
+  #walkhint.fade{opacity:0;pointer-events:none}
+  #minimap{position:fixed;right:16px;bottom:16px;width:150px;height:150px;z-index:5;border-radius:4px;border:1px solid var(--line);box-shadow:0 8px 28px rgba(22,22,21,.12)}
+  #joy{position:fixed;left:22px;bottom:28px;width:128px;height:128px;border-radius:50%;background:rgba(236,236,229,.6);border:1.5px solid rgba(22,22,21,.28);
+       backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:none;touch-action:none;z-index:6}
+  body.touch #joy{display:block}
+  #joy::after{content:'';position:absolute;inset:22px;border-radius:50%;border:1px dashed rgba(22,22,21,.22)}
+  #joyKnob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:var(--ink);box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:1}
+
+  @media (max-width:760px){
+    :root{--hdr:52px}
+    #site{gap:14px;padding:0 0 0 14px}
+    #site .logo .logo-svg{height:20px}
+    #nav{margin-left:0;padding-right:16px;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 30px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 30px),transparent)}
+    #nav a{font-size:11px;padding:9px 10px;letter-spacing:.07em}
+    #nav a .n{display:none}
+    #head{display:none}
+    #opts{top:calc(var(--hdr) + 10px);right:10px;min-width:0;max-width:calc(100vw - 20px)}
+    #opts.closed{min-width:0}
+    #info{top:calc(var(--hdr) + 10px);bottom:70px;right:10px;left:10px;width:auto}
+    #views{bottom:10px}
+    .lbl{font-size:10.5px;padding:4px 7px 4px 6px}
+    .lbl .m{display:none}
+    body.walking #opts{display:none}
+    #walkbar{top:calc(var(--hdr) + 10px)}
+    #walkbar .long{display:none}
+    #walkhint{bottom:auto;top:calc(var(--hdr) + 64px);font-size:11px;max-width:calc(100vw - 24px)}
+    #minimap{width:112px;height:112px;right:10px;bottom:20px}
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body data-sec="tresen">
+<div id="intro" aria-hidden="true"><svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="96 1458 609 211" role="img" aria-label="LAIBconcept"><g fill="currentColor"><g class="laib"><g class="ch" style="--i:0"><path transform="translate(91.14 1636.03)" d="M 7.75 0 L 7.75 -175.26 L 42.84 -175.26 L 42.84 -29.78 L 78.95 -29.78 L 78.95 0 Z M 7.75 0 "/></g><g class="ch" style="--i:1"><path transform="translate(171.72 1636.03)" d="M 3.06 0 L 20 -175.26 L 79.37 -175.26 L 96.09 0 L 62.84 0 L 60.39 -28.35 L 39.17 -28.35 L 37.14 0 Z M 41.82 -56.31 L 57.73 -56.31 L 49.98 -145.46 L 48.35 -145.46 Z M 41.82 -56.31 "/></g><g class="ch" style="--i:2"><path transform="translate(270.25 1636.03)" d="M 6.12 0 L 6.12 -175.26 L 39.98 -175.26 L 39.98 0 Z M 6.12 0 "/></g><g class="ch" style="--i:3"><path transform="translate(316.15 1636.03)" d="M 7.75 -175.26 L 55.29 -175.26 C 68.07 -175.26 77.35 -172.13 83.14 -165.87 C 88.92 -159.61 91.81 -149.41 91.81 -135.26 L 91.81 -127.51 C 91.81 -110.78 85.82 -100.78 73.85 -97.53 C 81.20 -95.62 86.36 -91.20 89.35 -84.26 C 92.35 -77.32 93.85 -68.14 93.85 -56.71 C 93.85 -38.08 91.06 -23.96 85.48 -14.37 C 79.91 -4.78 69.84 0 55.29 0 L 7.75 0 Z M 49.17 -109.35 C 52.16 -109.35 54.19 -110.47 55.28 -112.71 C 56.37 -114.96 56.92 -118.13 56.92 -122.21 L 56.92 -139.76 C 56.92 -145.47 54.40 -148.32 49.37 -148.32 L 42.03 -148.32 L 42.03 -109.35 Z M 45.5 -30.81 C 54.61 -30.81 59.17 -35.16 59.17 -43.85 L 59.17 -65.70 C 59.17 -71.00 58.38 -75.01 56.81 -77.73 C 55.25 -80.45 52.5 -81.81 48.56 -81.81 L 42.03 -81.81 L 42.03 -31.01 Z M 45.5 -30.81 "/></g></g><g class="concept"><path transform="translate(404.92 1634.95)" d="M 38.95 -68.28 C 42.26 -68.28 45 -67.22 47.15 -65.12 C 49.31 -63.01 50.39 -60.21 50.39 -56.70 C 50.39 -53.79 49.66 -51.43 48.20 -49.62 C 46.75 -47.82 44.92 -46.92 42.71 -46.92 C 41.20 -46.92 39.95 -47.39 38.95 -48.34 C 37.95 -49.30 37.45 -50.53 37.45 -52.04 C 37.45 -53.34 37.67 -54.32 38.12 -54.96 C 38.58 -55.62 39.31 -56.40 40.31 -57.31 C 41.20 -58.00 41.83 -58.60 42.18 -59.10 C 42.53 -59.60 42.71 -60.31 42.71 -61.21 C 42.71 -62.21 42.26 -63.09 41.35 -63.84 C 40.46 -64.59 39.35 -64.96 38.04 -64.96 C 34.64 -64.96 31.28 -62.93 27.96 -58.87 C 24.66 -54.82 21.98 -49.56 19.92 -43.09 C 17.86 -36.62 16.84 -29.97 16.84 -23.15 C 16.84 -16.43 17.76 -11.57 19.62 -8.56 C 21.47 -5.56 23.75 -4.06 26.46 -4.06 C 31.47 -4.06 36.79 -8.26 42.42 -16.68 L 44.37 -15.18 C 41.06 -9.87 37.34 -5.71 33.23 -2.70 C 29.12 0.30 25.01 1.81 20.90 1.81 C 16.09 1.81 12.15 -0.11 9.09 -3.98 C 6.03 -7.84 4.51 -12.93 4.51 -19.25 C 4.51 -27.76 6.36 -35.78 10.07 -43.31 C 13.78 -50.83 18.34 -56.87 23.76 -61.43 C 29.17 -66 34.24 -68.28 38.95 -68.28 Z M 38.95 -68.28 "/><path transform="translate(441.62 1634.95)" d="M 39.70 -68.28 C 45.31 -68.28 49.67 -66.32 52.78 -62.40 C 55.89 -58.5 57.45 -53.03 57.45 -46.03 C 57.45 -38.90 55.87 -31.60 52.71 -24.14 C 49.56 -16.67 45.30 -10.47 39.93 -5.56 C 34.57 -0.64 28.83 1.81 22.71 1.81 C 17.19 1.81 12.85 -0.09 9.70 -3.90 C 6.54 -7.71 4.96 -13.03 4.96 -19.85 C 4.96 -27.17 6.57 -34.61 9.78 -42.18 C 12.98 -49.75 17.27 -56 22.64 -60.90 C 28.00 -65.82 33.69 -68.28 39.70 -68.28 Z M 27.21 -55.95 C 24.11 -49.23 21.55 -41.18 19.54 -31.81 C 17.54 -22.43 16.54 -15.69 16.54 -11.57 C 16.54 -8.36 17.17 -5.88 18.42 -4.12 C 19.67 -2.37 21.61 -1.5 24.21 -1.5 C 28.92 -1.5 32.78 -4.66 35.79 -10.98 C 38.80 -17.39 41.23 -25.11 43.09 -34.14 C 44.94 -43.16 45.87 -49.82 45.87 -54.14 C 45.87 -61.35 43.31 -64.96 38.20 -64.96 C 35.69 -64.96 33.58 -64.21 31.87 -62.71 C 30.17 -61.21 28.62 -58.96 27.21 -55.95 Z M 27.21 -55.95 "/><path transform="translate(486.14 1634.95)" d="M 22.85 -33.68 L 23.15 -33.39 C 35.48 -56.64 45.92 -68.28 54.45 -68.28 C 56.64 -68.28 58.42 -67.47 59.78 -65.87 C 61.13 -64.26 61.81 -62.11 61.81 -59.40 C 61.81 -56.19 60.91 -50.73 59.10 -43.01 L 54.29 -22.40 C 53.79 -20 53.34 -18.09 52.93 -16.68 C 51.93 -12.28 51.43 -9.52 51.43 -8.42 C 51.43 -6.92 51.93 -6.17 52.93 -6.17 C 53.84 -6.17 54.94 -6.84 56.25 -8.20 C 57.55 -9.55 59.40 -12.03 61.81 -15.64 L 63.62 -14.14 C 59.61 -8.52 56.22 -4.46 53.46 -1.95 C 50.70 0.55 48.02 1.81 45.42 1.81 C 43.51 1.81 42.06 1.18 41.06 -0.06 C 40.06 -1.32 39.56 -2.85 39.56 -4.65 C 39.56 -6.46 40.00 -9.17 40.90 -12.78 L 48.73 -46.32 C 49.12 -47.62 49.47 -49.17 49.78 -50.98 C 50.08 -52.78 50.23 -54.08 50.23 -54.89 C 50.23 -56.09 49.95 -57.07 49.40 -57.82 C 48.85 -58.57 48.17 -58.95 47.37 -58.95 C 45.57 -58.95 43.23 -57.47 40.37 -54.51 C 37.51 -51.55 34.44 -47.42 31.14 -42.10 C 27.62 -36.39 24.59 -30.31 22.03 -23.84 C 19.47 -17.37 17.19 -9.42 15.18 0 L 4.06 0 L 15.79 -50.98 C 16.59 -54.69 17 -57 17 -57.90 C 17 -59.70 16.39 -60.92 15.18 -61.57 C 13.98 -62.23 12.33 -62.56 10.23 -62.56 L 10.82 -64.96 L 28.42 -68.28 L 30.98 -68.28 Z M 22.85 -33.68 "/><path transform="translate(538.48 1634.95)" d="M 38.95 -68.28 C 42.26 -68.28 45 -67.22 47.15 -65.12 C 49.31 -63.01 50.39 -60.21 50.39 -56.70 C 50.39 -53.79 49.66 -51.43 48.20 -49.62 C 46.75 -47.82 44.92 -46.92 42.71 -46.92 C 41.20 -46.92 39.95 -47.39 38.95 -48.34 C 37.95 -49.30 37.45 -50.53 37.45 -52.04 C 37.45 -53.34 37.67 -54.32 38.12 -54.96 C 38.58 -55.62 39.31 -56.40 40.31 -57.31 C 41.20 -58.00 41.83 -58.60 42.18 -59.10 C 42.53 -59.60 42.71 -60.31 42.71 -61.21 C 42.71 -62.21 42.26 -63.09 41.35 -63.84 C 40.46 -64.59 39.35 -64.96 38.04 -64.96 C 34.64 -64.96 31.28 -62.93 27.96 -58.87 C 24.66 -54.82 21.98 -49.56 19.92 -43.09 C 17.86 -36.62 16.84 -29.97 16.84 -23.15 C 16.84 -16.43 17.76 -11.57 19.62 -8.56 C 21.47 -5.56 23.75 -4.06 26.46 -4.06 C 31.47 -4.06 36.79 -8.26 42.42 -16.68 L 44.37 -15.18 C 41.06 -9.87 37.34 -5.71 33.23 -2.70 C 29.12 0.30 25.01 1.81 20.90 1.81 C 16.09 1.81 12.15 -0.11 9.09 -3.98 C 6.03 -7.84 4.51 -12.93 4.51 -19.25 C 4.51 -27.76 6.36 -35.78 10.07 -43.31 C 13.78 -50.83 18.34 -56.87 23.76 -61.43 C 29.17 -66 34.24 -68.28 38.95 -68.28 Z M 38.95 -68.28 "/><path transform="translate(575.18 1634.95)" d="M 40.90 -68.28 C 44.32 -68.28 47.10 -67.30 49.25 -65.34 C 51.40 -63.39 52.48 -60.86 52.48 -57.75 C 52.48 -54.53 51.30 -51.03 48.95 -47.21 C 46.59 -43.41 42.91 -39.91 37.89 -36.70 C 32.87 -33.49 26.71 -31.18 19.40 -29.78 C 19.10 -25.87 18.95 -23.41 18.95 -22.40 C 18.95 -17.28 19.75 -13.20 21.35 -10.14 C 22.96 -7.08 25.11 -5.56 27.82 -5.56 C 30.53 -5.56 33.16 -6.46 35.71 -8.26 C 38.28 -10.07 40.86 -12.33 43.46 -15.04 L 45.42 -13.39 C 39.91 -7.67 35.55 -3.70 32.34 -1.5 C 29.13 0.70 25.62 1.81 21.81 1.81 C 17.09 1.81 13.40 -0.06 10.75 -3.82 C 8.09 -7.58 6.76 -12.67 6.76 -19.10 C 6.76 -25.52 8.36 -32.64 11.57 -40.45 C 14.78 -48.27 18.99 -54.86 24.20 -60.23 C 29.42 -65.59 34.98 -68.28 40.90 -68.28 Z M 20.15 -32.93 C 24.86 -33.84 28.92 -35.77 32.32 -38.73 C 35.74 -41.69 38.28 -45.02 39.93 -48.73 C 41.59 -52.44 42.42 -55.95 42.42 -59.26 C 42.42 -60.96 42.06 -62.33 41.35 -63.39 C 40.66 -64.44 39.55 -64.96 38.04 -64.96 C 34.14 -64.96 30.55 -61.50 27.29 -54.59 C 24.03 -47.67 21.65 -40.45 20.15 -32.93 Z M 20.15 -32.93 "/><path transform="translate(611.88 1634.95)" d="M 29.03 -68.28 L 25.42 -52.79 L 25.71 -52.48 C 29.33 -58.00 32.64 -62.01 35.64 -64.51 C 38.64 -67.02 41.85 -68.28 45.26 -68.28 C 49.17 -68.28 52.21 -66.72 54.37 -63.60 C 56.53 -60.50 57.60 -56.14 57.60 -50.53 C 57.60 -43.61 55.85 -36.01 52.34 -27.75 C 48.83 -19.47 44.34 -12.48 38.87 -6.76 C 33.41 -1.04 27.92 1.81 22.40 1.81 C 20.80 1.81 19.22 1.50 17.67 0.90 C 16.11 0.30 14.73 -0.45 13.53 -1.35 L 9.78 15.48 C 8.97 19.20 8.57 21.66 8.57 22.85 C 8.57 26.56 11.13 28.42 16.25 28.42 L 17.45 28.42 L 16.84 30.98 L -14.14 30.98 L -13.53 28.42 C -10.42 28.11 -7.92 27.16 -6.01 25.56 C -4.10 23.95 -2.60 20.80 -1.5 16.09 L 13.98 -51.14 C 14.78 -54.34 15.18 -56.60 15.18 -57.90 C 15.18 -60.81 13.13 -62.41 9.03 -62.71 L 9.46 -65.12 L 26.62 -68.28 Z M 21.95 -1.5 C 26.06 -1.5 29.90 -4.28 33.46 -9.84 C 37.03 -15.41 39.86 -22.08 41.96 -29.85 C 44.07 -37.62 45.12 -44.42 45.12 -50.23 C 45.12 -53.44 44.59 -56.04 43.54 -58.04 C 42.49 -60.05 40.96 -61.06 38.95 -61.06 C 36.44 -61.06 34.03 -59.80 31.73 -57.29 C 29.42 -54.79 27.42 -51.78 25.71 -48.28 C 24.00 -44.76 22.80 -41.56 22.10 -38.65 L 14.89 -6.76 C 16.49 -3.25 18.84 -1.5 21.95 -1.5 Z M 21.95 -1.5 "/><path transform="translate(656.40 1634.95)" d="M 32.48 -84.37 L 35.04 -84.37 L 30.98 -66.48 L 41.21 -66.48 L 40.15 -61.96 L 29.93 -61.96 L 18.20 -11.43 C 17.99 -10.63 17.89 -9.83 17.89 -9.03 C 17.89 -7.21 18.44 -6.31 19.54 -6.31 C 21.75 -6.31 25.06 -9.36 29.48 -15.48 L 32.48 -15.48 C 28.87 -10.07 25.29 -5.84 21.73 -2.78 C 18.17 0.28 14.98 1.81 12.18 1.81 C 10.47 1.81 9.07 1.18 7.96 -0.06 C 6.86 -1.32 6.31 -2.95 6.31 -4.96 C 6.31 -6.96 7.01 -11.02 8.42 -17.14 L 18.79 -61.96 L 10.07 -61.96 L 10.82 -65.12 C 14.94 -66.42 18.92 -68.83 22.78 -72.34 C 26.64 -75.85 29.87 -79.86 32.48 -84.37 Z M 32.48 -84.37 "/><path transform="translate(678.96 1634.95)" d="M 16.39 -13.39 C 18.49 -13.39 20.27 -12.66 21.73 -11.20 C 23.19 -9.75 23.92 -7.97 23.92 -5.85 C 23.92 -3.75 23.19 -1.94 21.73 -0.43 C 20.27 1.06 18.49 1.81 16.39 1.81 C 14.28 1.81 12.47 1.06 10.96 -0.43 C 9.46 -1.94 8.71 -3.75 8.71 -5.85 C 8.71 -7.97 9.46 -9.75 10.96 -11.20 C 12.47 -12.66 14.28 -13.39 16.39 -13.39 Z M 16.39 -13.39 "/></g></g></svg></div>
+
+<header id="site">
+  <a class="logo" href="#tresen" aria-label="LAIBconcept – zum Tresen"><svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="96 1458 609 211" role="img" aria-label="LAIBconcept"><g fill="currentColor"><g class="laib"><g class="ch" style="--i:0"><path transform="translate(91.14 1636.03)" d="M 7.75 0 L 7.75 -175.26 L 42.84 -175.26 L 42.84 -29.78 L 78.95 -29.78 L 78.95 0 Z M 7.75 0 "/></g><g class="ch" style="--i:1"><path transform="translate(171.72 1636.03)" d="M 3.06 0 L 20 -175.26 L 79.37 -175.26 L 96.09 0 L 62.84 0 L 60.39 -28.35 L 39.17 -28.35 L 37.14 0 Z M 41.82 -56.31 L 57.73 -56.31 L 49.98 -145.46 L 48.35 -145.46 Z M 41.82 -56.31 "/></g><g class="ch" style="--i:2"><path transform="translate(270.25 1636.03)" d="M 6.12 0 L 6.12 -175.26 L 39.98 -175.26 L 39.98 0 Z M 6.12 0 "/></g><g class="ch" style="--i:3"><path transform="translate(316.15 1636.03)" d="M 7.75 -175.26 L 55.29 -175.26 C 68.07 -175.26 77.35 -172.13 83.14 -165.87 C 88.92 -159.61 91.81 -149.41 91.81 -135.26 L 91.81 -127.51 C 91.81 -110.78 85.82 -100.78 73.85 -97.53 C 81.20 -95.62 86.36 -91.20 89.35 -84.26 C 92.35 -77.32 93.85 -68.14 93.85 -56.71 C 93.85 -38.08 91.06 -23.96 85.48 -14.37 C 79.91 -4.78 69.84 0 55.29 0 L 7.75 0 Z M 49.17 -109.35 C 52.16 -109.35 54.19 -110.47 55.28 -112.71 C 56.37 -114.96 56.92 -118.13 56.92 -122.21 L 56.92 -139.76 C 56.92 -145.47 54.40 -148.32 49.37 -148.32 L 42.03 -148.32 L 42.03 -109.35 Z M 45.5 -30.81 C 54.61 -30.81 59.17 -35.16 59.17 -43.85 L 59.17 -65.70 C 59.17 -71.00 58.38 -75.01 56.81 -77.73 C 55.25 -80.45 52.5 -81.81 48.56 -81.81 L 42.03 -81.81 L 42.03 -31.01 Z M 45.5 -30.81 "/></g></g><g class="concept"><path transform="translate(404.92 1634.95)" d="M 38.95 -68.28 C 42.26 -68.28 45 -67.22 47.15 -65.12 C 49.31 -63.01 50.39 -60.21 50.39 -56.70 C 50.39 -53.79 49.66 -51.43 48.20 -49.62 C 46.75 -47.82 44.92 -46.92 42.71 -46.92 C 41.20 -46.92 39.95 -47.39 38.95 -48.34 C 37.95 -49.30 37.45 -50.53 37.45 -52.04 C 37.45 -53.34 37.67 -54.32 38.12 -54.96 C 38.58 -55.62 39.31 -56.40 40.31 -57.31 C 41.20 -58.00 41.83 -58.60 42.18 -59.10 C 42.53 -59.60 42.71 -60.31 42.71 -61.21 C 42.71 -62.21 42.26 -63.09 41.35 -63.84 C 40.46 -64.59 39.35 -64.96 38.04 -64.96 C 34.64 -64.96 31.28 -62.93 27.96 -58.87 C 24.66 -54.82 21.98 -49.56 19.92 -43.09 C 17.86 -36.62 16.84 -29.97 16.84 -23.15 C 16.84 -16.43 17.76 -11.57 19.62 -8.56 C 21.47 -5.56 23.75 -4.06 26.46 -4.06 C 31.47 -4.06 36.79 -8.26 42.42 -16.68 L 44.37 -15.18 C 41.06 -9.87 37.34 -5.71 33.23 -2.70 C 29.12 0.30 25.01 1.81 20.90 1.81 C 16.09 1.81 12.15 -0.11 9.09 -3.98 C 6.03 -7.84 4.51 -12.93 4.51 -19.25 C 4.51 -27.76 6.36 -35.78 10.07 -43.31 C 13.78 -50.83 18.34 -56.87 23.76 -61.43 C 29.17 -66 34.24 -68.28 38.95 -68.28 Z M 38.95 -68.28 "/><path transform="translate(441.62 1634.95)" d="M 39.70 -68.28 C 45.31 -68.28 49.67 -66.32 52.78 -62.40 C 55.89 -58.5 57.45 -53.03 57.45 -46.03 C 57.45 -38.90 55.87 -31.60 52.71 -24.14 C 49.56 -16.67 45.30 -10.47 39.93 -5.56 C 34.57 -0.64 28.83 1.81 22.71 1.81 C 17.19 1.81 12.85 -0.09 9.70 -3.90 C 6.54 -7.71 4.96 -13.03 4.96 -19.85 C 4.96 -27.17 6.57 -34.61 9.78 -42.18 C 12.98 -49.75 17.27 -56 22.64 -60.90 C 28.00 -65.82 33.69 -68.28 39.70 -68.28 Z M 27.21 -55.95 C 24.11 -49.23 21.55 -41.18 19.54 -31.81 C 17.54 -22.43 16.54 -15.69 16.54 -11.57 C 16.54 -8.36 17.17 -5.88 18.42 -4.12 C 19.67 -2.37 21.61 -1.5 24.21 -1.5 C 28.92 -1.5 32.78 -4.66 35.79 -10.98 C 38.80 -17.39 41.23 -25.11 43.09 -34.14 C 44.94 -43.16 45.87 -49.82 45.87 -54.14 C 45.87 -61.35 43.31 -64.96 38.20 -64.96 C 35.69 -64.96 33.58 -64.21 31.87 -62.71 C 30.17 -61.21 28.62 -58.96 27.21 -55.95 Z M 27.21 -55.95 "/><path transform="translate(486.14 1634.95)" d="M 22.85 -33.68 L 23.15 -33.39 C 35.48 -56.64 45.92 -68.28 54.45 -68.28 C 56.64 -68.28 58.42 -67.47 59.78 -65.87 C 61.13 -64.26 61.81 -62.11 61.81 -59.40 C 61.81 -56.19 60.91 -50.73 59.10 -43.01 L 54.29 -22.40 C 53.79 -20 53.34 -18.09 52.93 -16.68 C 51.93 -12.28 51.43 -9.52 51.43 -8.42 C 51.43 -6.92 51.93 -6.17 52.93 -6.17 C 53.84 -6.17 54.94 -6.84 56.25 -8.20 C 57.55 -9.55 59.40 -12.03 61.81 -15.64 L 63.62 -14.14 C 59.61 -8.52 56.22 -4.46 53.46 -1.95 C 50.70 0.55 48.02 1.81 45.42 1.81 C 43.51 1.81 42.06 1.18 41.06 -0.06 C 40.06 -1.32 39.56 -2.85 39.56 -4.65 C 39.56 -6.46 40.00 -9.17 40.90 -12.78 L 48.73 -46.32 C 49.12 -47.62 49.47 -49.17 49.78 -50.98 C 50.08 -52.78 50.23 -54.08 50.23 -54.89 C 50.23 -56.09 49.95 -57.07 49.40 -57.82 C 48.85 -58.57 48.17 -58.95 47.37 -58.95 C 45.57 -58.95 43.23 -57.47 40.37 -54.51 C 37.51 -51.55 34.44 -47.42 31.14 -42.10 C 27.62 -36.39 24.59 -30.31 22.03 -23.84 C 19.47 -17.37 17.19 -9.42 15.18 0 L 4.06 0 L 15.79 -50.98 C 16.59 -54.69 17 -57 17 -57.90 C 17 -59.70 16.39 -60.92 15.18 -61.57 C 13.98 -62.23 12.33 -62.56 10.23 -62.56 L 10.82 -64.96 L 28.42 -68.28 L 30.98 -68.28 Z M 22.85 -33.68 "/><path transform="translate(538.48 1634.95)" d="M 38.95 -68.28 C 42.26 -68.28 45 -67.22 47.15 -65.12 C 49.31 -63.01 50.39 -60.21 50.39 -56.70 C 50.39 -53.79 49.66 -51.43 48.20 -49.62 C 46.75 -47.82 44.92 -46.92 42.71 -46.92 C 41.20 -46.92 39.95 -47.39 38.95 -48.34 C 37.95 -49.30 37.45 -50.53 37.45 -52.04 C 37.45 -53.34 37.67 -54.32 38.12 -54.96 C 38.58 -55.62 39.31 -56.40 40.31 -57.31 C 41.20 -58.00 41.83 -58.60 42.18 -59.10 C 42.53 -59.60 42.71 -60.31 42.71 -61.21 C 42.71 -62.21 42.26 -63.09 41.35 -63.84 C 40.46 -64.59 39.35 -64.96 38.04 -64.96 C 34.64 -64.96 31.28 -62.93 27.96 -58.87 C 24.66 -54.82 21.98 -49.56 19.92 -43.09 C 17.86 -36.62 16.84 -29.97 16.84 -23.15 C 16.84 -16.43 17.76 -11.57 19.62 -8.56 C 21.47 -5.56 23.75 -4.06 26.46 -4.06 C 31.47 -4.06 36.79 -8.26 42.42 -16.68 L 44.37 -15.18 C 41.06 -9.87 37.34 -5.71 33.23 -2.70 C 29.12 0.30 25.01 1.81 20.90 1.81 C 16.09 1.81 12.15 -0.11 9.09 -3.98 C 6.03 -7.84 4.51 -12.93 4.51 -19.25 C 4.51 -27.76 6.36 -35.78 10.07 -43.31 C 13.78 -50.83 18.34 -56.87 23.76 -61.43 C 29.17 -66 34.24 -68.28 38.95 -68.28 Z M 38.95 -68.28 "/><path transform="translate(575.18 1634.95)" d="M 40.90 -68.28 C 44.32 -68.28 47.10 -67.30 49.25 -65.34 C 51.40 -63.39 52.48 -60.86 52.48 -57.75 C 52.48 -54.53 51.30 -51.03 48.95 -47.21 C 46.59 -43.41 42.91 -39.91 37.89 -36.70 C 32.87 -33.49 26.71 -31.18 19.40 -29.78 C 19.10 -25.87 18.95 -23.41 18.95 -22.40 C 18.95 -17.28 19.75 -13.20 21.35 -10.14 C 22.96 -7.08 25.11 -5.56 27.82 -5.56 C 30.53 -5.56 33.16 -6.46 35.71 -8.26 C 38.28 -10.07 40.86 -12.33 43.46 -15.04 L 45.42 -13.39 C 39.91 -7.67 35.55 -3.70 32.34 -1.5 C 29.13 0.70 25.62 1.81 21.81 1.81 C 17.09 1.81 13.40 -0.06 10.75 -3.82 C 8.09 -7.58 6.76 -12.67 6.76 -19.10 C 6.76 -25.52 8.36 -32.64 11.57 -40.45 C 14.78 -48.27 18.99 -54.86 24.20 -60.23 C 29.42 -65.59 34.98 -68.28 40.90 -68.28 Z M 20.15 -32.93 C 24.86 -33.84 28.92 -35.77 32.32 -38.73 C 35.74 -41.69 38.28 -45.02 39.93 -48.73 C 41.59 -52.44 42.42 -55.95 42.42 -59.26 C 42.42 -60.96 42.06 -62.33 41.35 -63.39 C 40.66 -64.44 39.55 -64.96 38.04 -64.96 C 34.14 -64.96 30.55 -61.50 27.29 -54.59 C 24.03 -47.67 21.65 -40.45 20.15 -32.93 Z M 20.15 -32.93 "/><path transform="translate(611.88 1634.95)" d="M 29.03 -68.28 L 25.42 -52.79 L 25.71 -52.48 C 29.33 -58.00 32.64 -62.01 35.64 -64.51 C 38.64 -67.02 41.85 -68.28 45.26 -68.28 C 49.17 -68.28 52.21 -66.72 54.37 -63.60 C 56.53 -60.50 57.60 -56.14 57.60 -50.53 C 57.60 -43.61 55.85 -36.01 52.34 -27.75 C 48.83 -19.47 44.34 -12.48 38.87 -6.76 C 33.41 -1.04 27.92 1.81 22.40 1.81 C 20.80 1.81 19.22 1.50 17.67 0.90 C 16.11 0.30 14.73 -0.45 13.53 -1.35 L 9.78 15.48 C 8.97 19.20 8.57 21.66 8.57 22.85 C 8.57 26.56 11.13 28.42 16.25 28.42 L 17.45 28.42 L 16.84 30.98 L -14.14 30.98 L -13.53 28.42 C -10.42 28.11 -7.92 27.16 -6.01 25.56 C -4.10 23.95 -2.60 20.80 -1.5 16.09 L 13.98 -51.14 C 14.78 -54.34 15.18 -56.60 15.18 -57.90 C 15.18 -60.81 13.13 -62.41 9.03 -62.71 L 9.46 -65.12 L 26.62 -68.28 Z M 21.95 -1.5 C 26.06 -1.5 29.90 -4.28 33.46 -9.84 C 37.03 -15.41 39.86 -22.08 41.96 -29.85 C 44.07 -37.62 45.12 -44.42 45.12 -50.23 C 45.12 -53.44 44.59 -56.04 43.54 -58.04 C 42.49 -60.05 40.96 -61.06 38.95 -61.06 C 36.44 -61.06 34.03 -59.80 31.73 -57.29 C 29.42 -54.79 27.42 -51.78 25.71 -48.28 C 24.00 -44.76 22.80 -41.56 22.10 -38.65 L 14.89 -6.76 C 16.49 -3.25 18.84 -1.5 21.95 -1.5 Z M 21.95 -1.5 "/><path transform="translate(656.40 1634.95)" d="M 32.48 -84.37 L 35.04 -84.37 L 30.98 -66.48 L 41.21 -66.48 L 40.15 -61.96 L 29.93 -61.96 L 18.20 -11.43 C 17.99 -10.63 17.89 -9.83 17.89 -9.03 C 17.89 -7.21 18.44 -6.31 19.54 -6.31 C 21.75 -6.31 25.06 -9.36 29.48 -15.48 L 32.48 -15.48 C 28.87 -10.07 25.29 -5.84 21.73 -2.78 C 18.17 0.28 14.98 1.81 12.18 1.81 C 10.47 1.81 9.07 1.18 7.96 -0.06 C 6.86 -1.32 6.31 -2.95 6.31 -4.96 C 6.31 -6.96 7.01 -11.02 8.42 -17.14 L 18.79 -61.96 L 10.07 -61.96 L 10.82 -65.12 C 14.94 -66.42 18.92 -68.83 22.78 -72.34 C 26.64 -75.85 29.87 -79.86 32.48 -84.37 Z M 32.48 -84.37 "/><path transform="translate(678.96 1634.95)" d="M 16.39 -13.39 C 18.49 -13.39 20.27 -12.66 21.73 -11.20 C 23.19 -9.75 23.92 -7.97 23.92 -5.85 C 23.92 -3.75 23.19 -1.94 21.73 -0.43 C 20.27 1.06 18.49 1.81 16.39 1.81 C 14.28 1.81 12.47 1.06 10.96 -0.43 C 9.46 -1.94 8.71 -3.75 8.71 -5.85 C 8.71 -7.97 9.46 -9.75 10.96 -11.20 C 12.47 -12.66 14.28 -13.39 16.39 -13.39 Z M 16.39 -13.39 "/></g></g></svg></a>
+  <nav id="nav" aria-label="Bereiche">
+    <a href="#tresen" data-sec="tresen"><span class="n">01</span>Tresen</a>
+    <a href="#gastraum" data-sec="gastraum"><span class="n">02</span>Gastraum</a>
+    <a href="#sanitaer" data-sec="sanitaer"><span class="n">03</span>Sanitär</a>
+    <a href="#aussenbereich" data-sec="aussenbereich"><span class="n">04</span>Außenbereich</a>
+    <a href="#kueche" data-sec="kueche"><span class="n">05</span>Küche</a>
+  </nav>
+</header>
+
+<section class="page" id="pg-gastraum"><div class="row"><span>02 / 05</span><span>Gastraum</span></div><h1>Gastraum</h1><div class="note">in Planung</div></section>
+<section class="page" id="pg-sanitaer"><div class="row"><span>03 / 05</span><span>Sanitär</span></div><h1>Sanitär</h1><div class="note">in Planung</div></section>
+<section class="page" id="pg-aussenbereich"><div class="row"><span>04 / 05</span><span>Außenbereich</span></div><h1>Außen&shy;bereich</h1><div class="note">in Planung</div></section>
+<section class="page" id="pg-kueche"><div class="row"><span>05 / 05</span><span>Küche</span></div><h1>Küche</h1><div class="note">in Planung</div></section>
+
+<script>
+(function(){
+  var SECS = ['tresen','gastraum','sanitaer','aussenbereich','kueche'];
+  var NAMES = { tresen:'Tresen', gastraum:'Gastraum', sanitaer:'Sanitär', aussenbereich:'Außenbereich', kueche:'Küche' };
+  function apply(){
+    var h = location.hash.slice(1), s = SECS.indexOf(h) >= 0 ? h : 'tresen';
+    document.body.setAttribute('data-sec', s);
+    var links = document.querySelectorAll('#nav a');
+    for (var i = 0; i < links.length; i++) links[i].classList.toggle('on', links[i].getAttribute('data-sec') === s);
+    document.title = 'LAIBconcept – ' + NAMES[s];
+    var nav = document.getElementById('nav'), a = nav.querySelector('a.on');
+    if (a){ var l = a.offsetLeft - nav.offsetLeft, r = l + a.offsetWidth;
+      if (l < nav.scrollLeft || r > nav.scrollLeft + nav.clientWidth) nav.scrollTo({ left:Math.max(0, l - 24), behavior:'smooth' }); }
+  }
+  addEventListener('hashchange', apply); apply();
+  var hdr = document.getElementById('site');
+  function setH(){ document.documentElement.style.setProperty('--hdr', hdr.offsetHeight + 'px'); }
+  setH(); addEventListener('resize', setH);
+  var intro = document.getElementById('intro');
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function end(){ if (!intro || intro.classList.contains('out')) return; intro.classList.add('out'); setTimeout(function(){ intro.parentNode && intro.parentNode.removeChild(intro); }, 1100); }
+  var started = false;
+  function go(){ if (started) return; started = true; intro.classList.add('go'); setTimeout(end, reduce ? 800 : 2900); }
+  // erst starten, wenn die Seite geladen UND sichtbar ist (eingebettete Vorschauen laden oft unsichtbar mit Größe 0)
+  function ready(){ return innerWidth > 60 && innerHeight > 60 && document.visibilityState !== 'hidden'; }
+  function whenShown(cb){                    // wartet, bis die Seite wirklich auf dem Bildschirm zu sehen ist
+    var done = false, fire = function(){ if (!done){ done = true; cb(); } };
+    try {
+      var io = new IntersectionObserver(function(es){
+        for (var i = 0; i < es.length; i++){ var e = es[i], v = ('isVisible' in e) ? e.isVisible : e.isIntersecting; if (v && ready()){ io.disconnect(); fire(); return; } }
+      }, { trackVisibility:true, delay:100, threshold:[0, .5, 1] });
+      io.observe(intro);
+    } catch(err){ (function poll(){ if (ready()) fire(); else setTimeout(poll, 100); })(); }
+    setTimeout(function poll2(){ if (done) return; if (ready()) fire(); else setTimeout(poll2, 200); }, 5000);   // Sicherheitsnetz
+  }
+  function tryGo(){ whenShown(function(){ setTimeout(go, 200); }); }
+  if (document.readyState === 'complete') tryGo(); else addEventListener('load', tryGo);
+  intro.addEventListener('click', function(){ go(); end(); });
+  function noScroll(){ if (window.scrollX || window.scrollY) window.scrollTo(0, 0); if (document.body.scrollTop) document.body.scrollTop = 0; }
+  addEventListener('scroll', noScroll, { passive:true }); document.body.addEventListener('scroll', noScroll, { passive:true });
+  if (window.matchMedia && matchMedia('(pointer: coarse)').matches) document.body.classList.add('touch');
+  addEventListener('touchstart', function(){ document.body.classList.add('touch'); }, { passive:true, once:true });
+})();
+</script>
+
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">3D-Modell wird geladen …</div>
+<script>window.addEventListener("error",function(e){var l=document.getElementById("loading");if(l){l.classList.remove("hide");l.textContent="Fehler beim Laden des Modells: "+(e.message||"")+" (Zeile "+(e.lineno||"?")+")";}});
+setTimeout(function(){var l=document.getElementById("loading");if(l&&!l.classList.contains("hide"))l.textContent="Das 3D-Modell konnte nicht geladen werden. Bitte Seite neu laden.";},20000);</script>
+
+<div id="head" class="card">
+  <div class="eyebrow">01 — Tresen · U-Form</div>
+  <h1>U-Theke an der Rückwand</h1>
+  <p>Front 357 · Seite 354 · Rückwand-Zeile 260,5 cm<br><b>Ziehen</b> = drehen · <b>Scrollen</b> = zoomen · <b>Rundgang</b> = selbst durchlaufen</p>
+</div>
+
+<div id="opts" class="card">
+  <button class="optsHead" id="optsToggle" aria-expanded="true"><span>Einstellungen</span><i>–</i></button>
+  <div class="optsBody">
+  <label class="sel">Front
+    <select id="optFront">
+      <option value="stahl_glatt">Edelstahl gebürstet (Inspo 2)</option>
+      <option value="stahl_rillen">Edelstahl gerillt</option>
+      <option value="terrazzo">Terrazzo (Inspo 1)</option>
+      <option value="nussbaum">Nussbaum-Lamellen</option>
+      <option value="eiche">Eiche-Lamellen</option>
+      <option value="weiss">Weiß matt</option>
+      <option value="salbei">Salbeigrün</option>
+      <option value="fliesen">Fliesen weiß</option>
+    </select>
+  </label>
+  <label class="sel">Wand
+    <select id="optWall">
+      <option value="taupe">Putz Taupe (Inspo 2)</option>
+      <option value="weiss">Putz Weiß</option>
+      <option value="beton">Sichtbeton</option>
+      <option value="nussbaum">Nussbaum-Paneel</option>
+      <option value="fliesen">Fliesen weiß</option>
+      <option value="salbei">Salbeigrün</option>
+      <option value="terracotta">Terracotta</option>
+    </select>
+  </label>
+  <label class="sel hide-m">Boden
+    <select id="optFloor">
+      <option value="beton">Beton geschliffen</option>
+      <option value="eiche">Eichendielen</option>
+      <option value="terrazzo">Terrazzo</option>
+      <option value="fliesen">Fliesen schwarz/weiß</option>
+    </select>
+  </label>
+  <div class="sep"></div>
+  <label class="row"><input type="checkbox" id="optLabels" checked> Beschriftung</label>
+  <label class="row hide-m"><input type="checkbox" id="optSmall" checked> Kleingeräte & Regale</label>
+  <label class="row hide-m"><input type="checkbox" id="optModel" checked> Modellnamen</label>
+  <label class="row"><input type="checkbox" id="optDims" checked> Maßketten</label>
+  <label class="row hide-m"><input type="checkbox" id="optUnits"> Unterbau-Beschriftung</label>
+  <label class="row hide-m"><input type="checkbox" id="optShelves" checked> Gläserregale</label>
+  <label class="row hide-m"><input type="checkbox" id="optPanel" checked> Nussbaum-Paneel (Inspo 1)</label>
+  <label class="row hide-m"><input type="checkbox" id="optDeco" checked> Blumen &amp; Deko</label>
+  <div class="sep"></div>
+  <button class="btn" id="btnInfo">Aufstellung &amp; Annahmen</button>
+  <button class="btn dark" id="btnPresent">Präsentationsmodus</button>
+  </div>
+</div>
+<script>
+(function(){
+  var o = document.getElementById('opts'), b = document.getElementById('optsToggle');
+  function set(open){ o.classList.toggle('closed', !open); b.setAttribute('aria-expanded', open); b.querySelector('i').textContent = open ? '–' : '+'; }
+  set(innerWidth > 760);
+  b.addEventListener('click', function(){ set(o.classList.contains('closed')); });
+})();
+</script>
+
+<div id="info" class="card">
+  <header><h2>Aufstellung Tresen</h2><button class="btn" id="btnInfoClose">Schließen</button></header>
+  <div class="body" id="infoBody"></div>
+</div>
+
+<div id="views" class="card">
+  <button data-v="rundgang" class="walk">Rundgang</button>
+  <button data-v="kunde">Kunde</button>
+  <button data-v="links">Links</button>
+  <button data-v="rechts">Rechts</button>
+  <button data-v="barista">Barista</button>
+  <button data-v="draufsicht">Draufsicht</button>
+  <button data-v="unterbau">Unterbau</button>
+</div>
+
+<div id="caption" class="card"></div>
+<button id="restore" class="btn dark">Bedienelemente einblenden</button>
+
+<div id="walkhud">
+  <div id="walkbar" class="card">
+    <button data-spot="gast"><span class="long">Als </span>Gast</button>
+    <button data-spot="barista"><span class="long">Als </span>Barista</button>
+    <button id="walkLbl">Namen</button>
+    <button id="walkExit" class="exit">Beenden</button>
+  </div>
+  <div id="walkhint" class="card"></div>
+  <canvas id="minimap" width="150" height="150" aria-label="Lageplan"></canvas>
+  <div id="joy" aria-label="Joystick zum Gehen"><div id="joyKnob"></div></div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+/* =========================================================
+   DATEN – U-Theke an der Rückwand (alle Maße in cm)
+   Front (zu den Gästen): x = 0 (Ecke, linke Wand) … 310, Kundenseite = +z
+   U-Form an der Rückwand: Seitenteil von z = −37 (Hinterkante Front) bis z = −237, Rückwand-Zeile z = −237 … −314; runde Außenecke
+   ========================================================= */
+const TOP = 87;                                        // Oberkante Arbeitsplatte (Projekt-Dokument: 870 mm)
+const FRONT = { x0:-5, x1:352, zBack:-37, zFront:40 };
+const SIDE  = { x0:0, x1:77, z0:-37, z1:-237 };        // 200 cm Lauf bis zur Rückwand-Zeile
+const BACK  = { x0:-5, x1:217, z0:-237, z1:-314 };      // Rückwand-Zeile (Platte 77 tief)
+const WALL_B = -314, DX = 42;      // Rückwand hinter dem Barista-Bereich; Front-Unterbauten um DX nach rechts (Platz für die Eckrundung)
+const fmt = v => (Math.round(v*10)/10).toString().replace('.', ',');
+
+// Hauptbereiche auf der Platte (gehen in die Maßketten ein)
+const ITEMS = [
+  // Seitenteil – s0 = Abstand ab Hinterkante der Front (z = −37)
+  { id:'st',  leg:'side', name:'Siebträger', w:71, s0:3, xc:32.5, top:TOP+53.3, c:'#c0392b', labelY:165,
+    plan:[215,-75.5,0,.5], model:'La Marzocco Linea PB 2-gruppig · H 53,3 cm', price:'', url:'' },
+  { id:'abk', leg:'side', name:'Kaffeeabklopfer', w:82, s0:76, xc:45.5, top:TOP+11.5, anchor:[65,TOP+11.5,-178], c:'#6f7f8c', labelY:118,
+    plan:[215,-150,0,.5], model:'GGM KSK1041 · 2 Schubladen · beide Mühlen stehen darauf', price:'', url:'' },
+  { id:'af',  leg:'side', name:'Arbeitsfläche', w:40, s0:160, xc:38, top:TOP, area:true, c:'#8a7560', labelY:104,
+    plan:[215,-188,0,.5], model:'Wasserkocher-Station', price:'', url:'' },
+  // Rückwand-Zeile – x0 ab der Außenkante (x = −5)
+  { id:'ecke', leg:'back', name:'Ecke', w:82, x0:-5, zc:-275.5, top:TOP, area:true, c:'#8a7560', labelY:104,
+    plan:[36,-322,.5,1], model:'darunter die Osmoseanlage', price:'', url:'' },
+  { id:'sm',  leg:'back', name:'Spülmaschine', w:60, x0:77, zc:-275.5, top:TOP, area:true, c:'#2f7f9e', labelY:104,
+    plan:[107,-340,.5,1], model:'Winterhalter UC-S unter der Platte', price:'', url:'' },
+  { id:'sp',  leg:'back', name:'Spüle mit Tassenspüle', w:80, x0:137, zc:-277, top:TOP+30, c:'#3d8f8a', labelY:128,
+    plan:[177,-322,.5,1], model:'Homelavade 55 × 43 · Talis M54 · Absperrventil F21', price:'', url:'' },
+  { id:'froster', leg:'back', name:'Froster', w:35.5, x0:220, zc:-280.5, top:85, c:'#6f7f8c', labelY:118,
+    plan:[238,-340,.5,1], model:'Klarstein Tiefkühltruhe 51 l · Deckel oben, frei stehend', price:'', url:'' },
+  // Front – x0 ab der Ecke
+  { id:'vitrine', leg:'front', name:'Vitrine', w:60, x0:117, zc:15, top:TOP+36, c:'#a8692e', labelY:140,
+    plan:[147,92,.5,0], model:'forestalk Holz-/Glasvitrine, ohne Kühlung', price:'', url:'' },
+  { id:'aus', leg:'front', name:'Ausgabe / Clean-Area', w:50, x0:182, zc:1.5, top:TOP, area:true, c:'#2e8b62', labelY:108,
+    plan:[207,110,.5,0], model:'frei für die Getränkeausgabe', price:'', url:'' },
+  { id:'ipad', leg:'front', name:'iPad', w:29.7, x0:310, zc:18, top:TOP+34, c:'#3b6ea5', labelY:140,
+    plan:[325,92,.5,0], model:'Apple iPad Air · Kasse', price:'', url:'' },
+];
+// Kleingeräte & Wandregale (eigene, kleinere Beschriftung, nicht in der Maßkette)
+const SMALL = [
+  { id:'term',  name:'Kartenterminal', pos:[296,TOP+17,28], c:'#3b6ea5', labelY:120, plan:[296,110,.5,0], model:'Lightspeed Smart Terminal · im Dock an der Kasse', price:'', url:'' },
+  { id:'kocher',name:'Wasserkocher ×2', pos:[45,TOP+20,-207], c:'#8a7560', labelY:122, plan:[215,-222,0,.5], model:'Chiato Gooseneck 0,6 l', price:'', url:'' },
+  { id:'reg1',  name:'Gläserregal 1', pos:[95,205.5,-294], c:'#6f7f8c', labelY:226, plan:[215,-300,0,.5], model:'Wandregal-Set 200 × 40 · 3 Böden', price:'', url:'' },
+  { id:'reg2',  name:'Gläserregal 2', pos:[305,205.5,-294], c:'#6f7f8c', labelY:226, plan:[200,-366,.5,0], model:'Wandregal-Set 200 × 40 · 3 Böden', price:'', url:'' },
+];
+// Unterbauten & Geräte unter der Platte
+const UNITS = [
+  { name:'Schubladenschrank 1,2 m', model:'2 Türen + 3 Schubladen · 1200 × 700', price:'', pos:[142,52,-40] },
+  { name:'Kühltisch 0,9 m', model:'4 Schubladen · 900 × 700 × 850', price:'', pos:[207,52,-40] },
+  { name:'Arbeitstisch 1,0 m', model:'offen, mit Grundboden · 1000 × 700', price:'', pos:[302,74,-40] },
+  { name:'Mülltrennung', model:'3 × 7 l · 58 × 27 × 47', price:'', pos:[301,32,-40] },
+  { name:'Siebträgertisch 1,6 m', model:'GGM ASK167 · Schiebetüren · Wasserfilter innen', price:'', pos:[74,48,-115] },
+  { name:'Osmoseanlage', model:'Winterhalter AT Excellence-S · 56 × 42 × 20,5', price:'', pos:[36,28,-236] },
+  { name:'Spülmaschinenschrank 0,6 m', model:'ohne Grundboden · darunter Winterhalter UC-S', price:'', pos:[107,56,-238] },
+  { name:'Spülschrank 0,8 m', model:'Flügeltüren · 800 × 700 × 850', price:'', pos:[177,50,-238] },
+];
+const byId = Object.fromEntries(ITEMS.map(i => [i.id, i]));
+for (const it of ITEMS){
+  if (it.leg === 'front'){ it.cx = it.x0 + it.w/2; it.xr = it.x0 - FRONT.x0; }
+  else if (it.leg === 'back'){ it.cx = it.x0 + it.w/2; it.xr = it.x0 - BACK.x0; }
+  else { it.zc = SIDE.z0 - it.s0 - it.w/2; it.cx = it.xc; }
+}
+function segments(items, len, key){
+  const out = []; let p = 0;
+  for (const it of [...items].sort((a,b) => a[key]-b[key])){
+    if (it[key] - p > 0.05) out.push({ gap:true, a:p, w:it[key]-p });
+    out.push({ gap:false, a:it[key], w:it.w, it });
+    p = it[key] + it.w;
+  }
+  if (len - p > 0.05) out.push({ gap:true, a:p, w:len-p });
+  return out;
+}
+const SEGS_FRONT = segments(ITEMS.filter(i => i.leg === 'front'), FRONT.x1 - FRONT.x0, 'xr');
+const SEGS_SIDE  = segments(ITEMS.filter(i => i.leg === 'side'), SIDE.z0 - SIDE.z1, 's0');
+const SEGS_BACK  = segments(ITEMS.filter(i => i.leg === 'back'), 260.5, 'xr');
+
+/* =========================================================
+   RENDERER / SZENE
+   ========================================================= */
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+stage.appendChild(renderer.domElement);
+const labelRenderer = new CSS2DRenderer({ element: document.getElementById('labels') });
+labelRenderer.setSize(innerWidth, innerHeight);
+
+const scene = new THREE.Scene();
+const BG = new THREE.Color('#dcdad1');
+scene.background = BG;
+scene.fog = new THREE.Fog(BG, 1100, 3000);
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+function makeEnv(){
+  const s = new THREE.Scene();
+  const room = new THREE.Mesh(new THREE.BoxGeometry(20, 8, 20), new THREE.MeshBasicMaterial({ color:0xb4ada4, side:THREE.BackSide }));
+  room.position.y = 3; s.add(room);
+  const fl = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshBasicMaterial({ color:0x7d766e }));
+  fl.rotation.x = -Math.PI/2; fl.position.y = -0.98; s.add(fl);
+  const light = (w,h,x,y,z,rx,ry,c,i) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshBasicMaterial({ color:new THREE.Color(c).multiplyScalar(i), side:THREE.DoubleSide })); m.position.set(x,y,z); m.rotation.set(rx,ry,0); s.add(m); };
+  for (const z of [-4, 0, 4]) light(7, 1.1, 0, 6.9, z, Math.PI/2, 0, 0xfff3e2, 6);
+  light(9, 3.5, 0, 3, 9.9, 0, Math.PI, 0xffffff, 2.6);
+  light(9, 3.5, 0, 3, -9.9, 0, 0, 0xfff6ec, 2.0);
+  light(4, 3, 9.9, 3, 0, 0, -Math.PI/2, 0xffe6c8, 2.4);
+  light(4, 3, -9.9, 3, 0, 0, Math.PI/2, 0xffffff, 1.6);
+  return pmrem.fromScene(s, 0.02).texture;
+}
+scene.environment = makeEnv();
+
+const safeAspect = () => Math.max(1, innerWidth) / Math.max(1, innerHeight);
+const camera = new THREE.PerspectiveCamera(38, safeAspect(), 5, 7000);
+camera.position.set(600, 300, 200);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(150, 100, -150);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.maxPolarAngle = Math.PI * 0.495;
+controls.minDistance = 60;
+controls.maxDistance = 1800;
+let userMoved = false, tween = null;
+controls.addEventListener('start', () => { userMoved = true; tween = null; });
+
+/* =========================================================
+   PROZEDURALE TEXTUREN (Canvas, einmal gezeichnet, je Fläche mit eigener Wiederholung)
+   ========================================================= */
+function rng(seed){ return function(){ seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const maxAniso = renderer.capabilities.getMaxAnisotropy();
+const CANVAS = {};
+function canvas(name, w, h, draw){
+  if (!CANVAS[name]){ const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); CANVAS[name] = c; }
+  return CANVAS[name];
+}
+function texFrom(cnv, ru=1, rv=1, srgb=true){
+  const t = new THREE.CanvasTexture(cnv);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(ru, rv);
+  t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.anisotropy = maxAniso;
+  return t;
+}
+function drawBrushed(g, w, h, seed, vertical){
+  const r = rng(seed);
+  g.fillStyle = '#8c8c8c'; g.fillRect(0,0,w,h);
+  for (let i=0;i<5200;i++){
+    const a = r()*(vertical?w:h), b = r()*(vertical?h:w), len = 40 + r()*420, v = r();
+    g.strokeStyle = v > .5 ? `rgba(255,255,255,${r()*.10})` : `rgba(0,0,0,${r()*.10})`;
+    g.lineWidth = r() < .9 ? 1 : 2;
+    g.beginPath();
+    if (vertical){ g.moveTo(a, b); g.lineTo(a, b+len); } else { g.moveTo(b, a); g.lineTo(b+len, a); }
+    g.stroke();
+  }
+}
+const cBrushH = () => canvas('brushH', 512, 512, (g,w,h) => drawBrushed(g,w,h,7,false));
+const cBrushV = () => canvas('brushV', 512, 512, (g,w,h) => drawBrushed(g,w,h,11,true));
+const cTerrazzo = () => canvas('terrazzo', 1024, 1024, (g,w,h) => {
+  const r = rng(42);
+  g.fillStyle = '#e7e2da'; g.fillRect(0,0,w,h);
+  for (let i=0;i<9000;i++){ g.fillStyle = `rgba(120,110,100,${r()*.10})`; g.fillRect(r()*w, r()*h, 1.5, 1.5); }
+  const cols = ['#a39c93','#6b6660','#c9bfb1','#b4aa9d','#3a3734','#d6cdc0','#8d8379','#e1d9cd'];
+  for (let i=0;i<2600;i++){
+    const x = r()*w, y = r()*h, s = 1.5 + Math.pow(r(), 3)*11, n = 4 + (r()*4|0);
+    g.fillStyle = cols[(r()*cols.length)|0]; g.beginPath();
+    for (let k=0;k<n;k++){ const a = k/n*Math.PI*2 + r()*.6, rr = s*(.55 + r()*.6); const px = x + Math.cos(a)*rr, py = y + Math.sin(a)*rr; k ? g.lineTo(px,py) : g.moveTo(px,py); }
+    g.closePath(); g.fill();
+  }
+});
+function drawWood(g, w, h, seed, base, dark, light, vertical){
+  const r = rng(seed);
+  g.fillStyle = base; g.fillRect(0,0,w,h);
+  for (let i=0;i<170;i++){
+    const y0 = r()*(vertical?w:h), A = 2 + r()*9, f = .004 + r()*.012, p = r()*6.28;
+    g.strokeStyle = r() > .45 ? dark.replace('A', (.08 + r()*.22).toFixed(2)) : light.replace('A', (.05 + r()*.12).toFixed(2));
+    g.lineWidth = .6 + r()*2.4; g.beginPath();
+    for (let t=0;t<=(vertical?h:w);t+=6){ const o = y0 + Math.sin(t*f + p)*A + Math.sin(t*f*3.1 + p*2)*A*.25; if (vertical){ t ? g.lineTo(o,t) : g.moveTo(o,t); } else { t ? g.lineTo(t,o) : g.moveTo(t,o); } }
+    g.stroke();
+  }
+}
+const cWalnutH = () => canvas('walnutH', 512, 512, (g,w,h) => drawWood(g,w,h,5,'#644330','rgba(35,18,8,A)','rgba(160,110,70,A)',false));
+const cWalnutV = () => canvas('walnutV', 512, 512, (g,w,h) => drawWood(g,w,h,6,'#644330','rgba(35,18,8,A)','rgba(160,110,70,A)',true));
+const cOakV = () => canvas('oakV', 512, 512, (g,w,h) => drawWood(g,w,h,8,'#c9a67a','rgba(110,75,40,A)','rgba(240,215,175,A)',true));
+const cOakFloor = () => canvas('oakFloor', 1024, 1024, (g,w,h) => {
+  drawWood(g,w,h,9,'#c4a072','rgba(110,75,40,A)','rgba(240,215,175,A)',false);
+  const r = rng(13), rows = 5; g.strokeStyle = 'rgba(70,45,25,.45)'; g.lineWidth = 2;
+  for (let i=0;i<=rows;i++){ const y = i*h/rows; g.beginPath(); g.moveTo(0,y); g.lineTo(w,y); g.stroke();
+    const off = r()*w; for (let k=0;k<2;k++){ const x = (off + k*w/2) % w; g.beginPath(); g.moveTo(x,y); g.lineTo(x,y+h/rows); g.stroke(); } }
+});
+const cConcrete = () => canvas('concrete', 1024, 1024, (g,w,h) => {
+  const r = rng(3);
+  g.fillStyle = '#bdb5ab'; g.fillRect(0,0,w,h);
+  for (let i=0;i<260;i++){ const x=r()*w,y=r()*h,s=30+r()*160; const gr=g.createRadialGradient(x,y,0,x,y,s); const d = r()>.5; gr.addColorStop(0, d?'rgba(90,80,70,.10)':'rgba(255,250,240,.10)'); gr.addColorStop(1,'rgba(0,0,0,0)'); g.fillStyle=gr; g.fillRect(x-s,y-s,2*s,2*s); }
+  for (let i=0;i<26000;i++){ g.fillStyle = `rgba(${r()>.5?60:255},${r()>.5?55:250},${r()>.5?50:240},${r()*.10})`; g.fillRect(r()*w, r()*h, 1.2, 1.2); }
+});
+const cPlaster = () => canvas('plaster', 512, 512, (g,w,h) => {
+  const r = rng(17); g.fillStyle = '#f4f4f4'; g.fillRect(0,0,w,h);
+  for (let i=0;i<120;i++){ const x=r()*w,y=r()*h,s=20+r()*90; const gr=g.createRadialGradient(x,y,0,x,y,s); gr.addColorStop(0, r()>.5?'rgba(0,0,0,.035)':'rgba(255,255,255,.05)'); gr.addColorStop(1,'rgba(0,0,0,0)'); g.fillStyle=gr; g.fillRect(x-s,y-s,2*s,2*s); }
+  for (let i=0;i<14000;i++){ g.fillStyle = `rgba(0,0,0,${r()*.035})`; g.fillRect(r()*w, r()*h, 1, 1); }
+});
+const cSubway = () => canvas('subway', 512, 512, (g,w,h) => {    // 100 × 100 cm, Fliesen 20 × 10 cm
+  const r = rng(21); g.fillStyle = '#cfcac2'; g.fillRect(0,0,w,h);
+  const tw = w/5, th = h/10;
+  for (let row=0; row<10; row++) for (let col=-1; col<6; col++){
+    const x = col*tw + (row%2 ? tw/2 : 0), y = row*th, v = 236 + r()*14;
+    g.fillStyle = `rgb(${v},${v-2},${v-6})`; g.fillRect(x+2, y+2, tw-4, th-4);
+  }
+});
+const cCheck = () => canvas('check', 512, 512, (g,w,h) => {     // 100 × 100 cm, Fliesen 25 × 25 cm
+  const n = 4, s = w/n; for (let i=0;i<n;i++) for (let j=0;j<n;j++){ g.fillStyle = (i+j)%2 ? '#26272a' : '#ebe7df'; g.fillRect(i*s, j*s, s, s); }
+  g.strokeStyle = 'rgba(120,115,108,.6)'; g.lineWidth = 2; for (let i=0;i<=n;i++){ g.beginPath(); g.moveTo(i*s,0); g.lineTo(i*s,h); g.stroke(); g.beginPath(); g.moveTo(0,i*s); g.lineTo(w,i*s); g.stroke(); }
+});
+const cFlute = () => canvas('flute', 64, 4, (g,w,h) => {
+  const img = g.createImageData(w,h);
+  for (let x=0;x<w;x++){ const p=(x+.5)/w, nx=Math.max(-.92,Math.min(.92,(p-.5)*2.1)), nz=Math.sqrt(1-nx*nx);
+    for (let y=0;y<h;y++){ const i=(y*w+x)*4; img.data[i]=(nx*.5+.5)*255; img.data[i+1]=128; img.data[i+2]=nz*255; img.data[i+3]=255; } }
+  g.putImageData(img,0,0);
+});
+const cSlats = () => canvas('slats', 64, 4, (g,w,h) => {          // Holzlamellen als Normal-Map
+  const img = g.createImageData(w,h);
+  for (let x=0;x<w;x++){ const p=(x+.5)/w; let nx = 0; if (p < .12) nx = -.8; else if (p > .88) nx = .8;
+    const nz = Math.sqrt(1-nx*nx); for (let y=0;y<h;y++){ const i=(y*w+x)*4; img.data[i]=(nx*.5+.5)*255; img.data[i+1]=128; img.data[i+2]=nz*255; img.data[i+3]=255; } }
+  g.putImageData(img,0,0);
+});
+function screenTex(w, h, draw){ const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
+const texPOS = screenTex(600,420,(g)=>{
+  g.fillStyle='#f3efe8'; g.fillRect(0,0,600,420); g.fillStyle='#24211d'; g.fillRect(0,0,600,46);
+  g.fillStyle='#f3efe8'; g.font='500 21px "Roboto Mono", monospace'; g.fillText('LAIB · Kasse',18,31);
+  const cols=['#c9b49a','#a8bfb0','#d7c3a6','#b9a8c4','#e0cfb2','#a9bccd'];
+  for(let r=0;r<3;r++)for(let c=0;c<3;c++){ g.fillStyle=cols[(r*3+c)%6]; g.beginPath(); g.roundRect(16+c*122,62+r*112,110,100,10); g.fill(); }
+  g.fillStyle='#fff'; g.fillRect(392,62,192,340); g.fillStyle='#d9d2c7'; for(let i=0;i<6;i++) g.fillRect(406,82+i*34,150,10);
+  g.fillStyle='#2e8b62'; g.beginPath(); g.roundRect(406,340,164,46,8); g.fill();
+});
+const texGrinderUI = screenTex(128,80,(g)=>{ g.fillStyle='#070809'; g.fillRect(0,0,128,80); g.fillStyle='#e8f1f2'; g.font='600 30px Arial, sans-serif'; g.fillText('18,0',14,44); g.font='500 14px Arial, sans-serif'; g.fillStyle='#8fb7bf'; g.fillText('g · GbW',16,66); });
+const texMachineUI = screenTex(96,48,(g)=>{ g.fillStyle='#050505'; g.fillRect(0,0,96,48); g.fillStyle='#f2f2f2'; g.font='600 20px Arial, sans-serif'; g.fillText('93,5°',12,31); });
+const texTerm = screenTex(80,160,(g)=>{ g.fillStyle='#0d0f12'; g.fillRect(0,0,80,160); g.fillStyle='#e9eef2'; g.font='600 16px Arial, sans-serif'; g.fillText('4,20 €',10,50); g.fillStyle='#2e8b62'; g.fillRect(10,110,60,22); });
+
+/* =========================================================
+   MATERIALIEN
+   ========================================================= */
+const std = (o) => new THREE.MeshStandardMaterial(o);
+const M = {
+  steel:     std({ color:0xe2e5e8, metalness:1, roughness:.6, roughnessMap:texFrom(cBrushH(),1,1,false), envMapIntensity:1.25 }),
+  steelW:    std({ color:0xe2e5e8, metalness:1, roughness:.58, roughnessMap:texFrom(cBrushH(),1/60,1/60,false), envMapIntensity:1.3 }),
+  steelDark: std({ color:0x5d6166, metalness:1, roughness:.38 }),
+  grate:     std({ color:0x2b2d30, metalness:.8, roughness:.45 }),
+  chrome:    std({ color:0xf3f3f3, metalness:1, roughness:.07, envMapIntensity:1.25 }),
+  alu:       std({ color:0xd3d6d9, metalness:1, roughness:.3, envMapIntensity:1.2 }),
+  black:     std({ color:0x1c1c1e, metalness:.25, roughness:.52 }),
+  blackGl:   std({ color:0x0b0b0c, metalness:.2, roughness:.12 }),
+  groove:    std({ color:0x2a2c2f, metalness:.6, roughness:.6 }),
+  ceramic:   std({ color:0xf5f2ec, roughness:.22 }),
+  beans:     std({ color:0x3d2313, roughness:.85 }),
+  walnut:    std({ map:texFrom(cWalnutH()), roughness:.48 }),
+  kraft:     std({ color:0xc7a47a, roughness:.92 }),
+  pastry:    std({ color:0x8a4a22, roughness:.58 }),
+  pastry2:   std({ color:0xb7742f, roughness:.55 }),
+  plinth:    std({ color:0x26231f, roughness:.85 }),
+  paper:     std({ color:0xfaf4e8, emissive:0xffe2b8, emissiveIntensity:1.15, roughness:.9 }),
+  grey:      std({ color:0x8e9196, metalness:.3, roughness:.5 }),
+  freezer:   std({ color:0xc9ccd0, metalness:.6, roughness:.35 }),
+  screenPOS: std({ map:texPOS, emissive:0xffffff, emissiveMap:texPOS, emissiveIntensity:.55, roughness:.15 }),
+  screenGr:  std({ map:texGrinderUI, emissive:0xffffff, emissiveMap:texGrinderUI, emissiveIntensity:.7, roughness:.2 }),
+  screenMa:  std({ map:texMachineUI, emissive:0xffffff, emissiveMap:texMachineUI, emissiveIntensity:.8, roughness:.2 }),
+  screenTm:  std({ map:texTerm, emissive:0xffffff, emissiveMap:texTerm, emissiveIntensity:.6, roughness:.2 }),
+  btn:       std({ color:0xffffff, emissive:0xffffff, emissiveIntensity:.35, roughness:.3 }),
+  basin:     std({ color:0x9ea3a8, metalness:1, roughness:.35, envMapIntensity:1.1 }),
+};
+M.glass = new THREE.MeshPhysicalMaterial({ color:0xffffff, roughness:.04, metalness:0, transparent:true, opacity:.13, side:THREE.DoubleSide, depthWrite:false, envMapIntensity:2.2, clearcoat:1, clearcoatRoughness:.05 });
+M.hopper = new THREE.MeshPhysicalMaterial({ color:0xd7dde0, roughness:.06, metalness:0, transparent:true, opacity:.32, side:THREE.DoubleSide, depthWrite:false, envMapIntensity:1.8, clearcoat:1 });
+M.drinkGlass = new THREE.MeshPhysicalMaterial({ color:0xeef4f6, roughness:.05, metalness:0, transparent:true, opacity:.42, envMapIntensity:2, clearcoat:1 });
+
+// Einstellbare Oberflächen: Front (Gästeseite), Wände, Boden. uLen/vLen = Flächengröße in cm
+const SURF = {
+  front: {
+    stahl_rillen: (u,v) => std({ color:0xe0e3e6, metalness:1, roughness:.55, roughnessMap:texFrom(cBrushV(),u/100,v/100,false), normalMap:texFrom(cFlute(),u/3,1,false), normalScale:new THREE.Vector2(.38,.38), envMapIntensity:1.3 }),
+    stahl_glatt:  (u,v) => std({ color:0xe2e5e8, metalness:1, roughness:.48, roughnessMap:texFrom(cBrushV(),u/100,v/100,false), envMapIntensity:1.35 }),
+    terrazzo:     (u,v) => std({ map:texFrom(cTerrazzo(),u/100,v/100), roughness:.42, envMapIntensity:.6 }),
+    nussbaum:     (u,v) => std({ map:texFrom(cWalnutV(),u/100,v/100), roughness:.5, normalMap:texFrom(cSlats(),u/8,1,false), normalScale:new THREE.Vector2(.6,.6) }),
+    eiche:        (u,v) => std({ map:texFrom(cOakV(),u/100,v/100), roughness:.55, normalMap:texFrom(cSlats(),u/8,1,false), normalScale:new THREE.Vector2(.6,.6) }),
+    weiss:        (u,v) => std({ color:0xf1eee8, roughness:.7, map:texFrom(cPlaster(),u/100,v/100) }),
+    salbei:       (u,v) => std({ color:0x9fae98, roughness:.75, map:texFrom(cPlaster(),u/100,v/100) }),
+    fliesen:      (u,v) => std({ map:texFrom(cSubway(),u/100,v/100), roughness:.25, envMapIntensity:.8 }),
+  },
+  wall: {
+    taupe:      (u,v) => std({ color:0xb3a18c, roughness:.95, map:texFrom(cPlaster(),u/150,v/150) }),
+    weiss:      (u,v) => std({ color:0xf0ede7, roughness:.95, map:texFrom(cPlaster(),u/150,v/150) }),
+    beton:      (u,v) => std({ map:texFrom(cConcrete(),u/300,v/300), roughness:.85 }),
+    nussbaum:   (u,v) => std({ map:texFrom(cWalnutV(),u/100,v/100), roughness:.55, normalMap:texFrom(cSlats(),u/10,1,false), normalScale:new THREE.Vector2(.6,.6) }),
+    fliesen:    (u,v) => std({ map:texFrom(cSubway(),u/100,v/100), roughness:.25, envMapIntensity:.8 }),
+    salbei:     (u,v) => std({ color:0x9fae98, roughness:.95, map:texFrom(cPlaster(),u/150,v/150) }),
+    terracotta: (u,v) => std({ color:0xc07a5a, roughness:.95, map:texFrom(cPlaster(),u/150,v/150) }),
+  },
+  floor: {
+    beton:    (u,v) => std({ color:0xd9d9d9, map:texFrom(cConcrete(),u/300,v/300), roughness:.62, envMapIntensity:.5 }),
+    eiche:    (u,v) => std({ map:texFrom(cOakFloor(),u/120,v/120), roughness:.6, envMapIntensity:.5 }),
+    terrazzo: (u,v) => std({ map:texFrom(cTerrazzo(),u/100,v/100), roughness:.4, envMapIntensity:.6 }),
+    fliesen:  (u,v) => std({ map:texFrom(cCheck(),u/100,v/100), roughness:.3, envMapIntensity:.7 }),
+  },
+};
+const SURFACES = [];   // { mesh, group, u, v, cache }
+function surface(group, mesh, u, v, kind){ const s = { mesh, group, u, v, cache:{} }; SURFACES.push(s); applySurface(s, kind); return mesh; }
+function applySurface(s, kind){ if (!s.cache[kind]) s.cache[kind] = SURF[s.group][kind](s.u, s.v); s.mesh.material = s.cache[kind]; }
+function setSurface(group, kind){ for (const s of SURFACES) if (s.group === group) applySurface(s, kind); }
+
+/* =========================================================
+   HELFER
+   ========================================================= */
+function sh(m, cast=true, recv=true){ m.castShadow = cast; m.receiveShadow = recv; return m; }
+function mk(geo, mat, x=0, y=0, z=0, parent=scene){ const m = sh(new THREE.Mesh(geo, mat)); m.position.set(x,y,z); parent.add(m); return m; }
+const box  = (w,h,d,mat,x,y,z,p) => mk(new THREE.BoxGeometry(w,h,d), mat, x,y,z,p);
+const rbox = (w,h,d,r,mat,x,y,z,p) => mk(new RoundedBoxGeometry(w,h,d,3,r), mat, x,y,z,p);
+const cyl  = (rt,rb,h,mat,x,y,z,p,seg=32) => mk(new THREE.CylinderGeometry(rt,rb,h,seg), mat, x,y,z,p);
+function tube(a, b, r, mat, parent, r2=r){
+  const dir = new THREE.Vector3().subVectors(b, a), len = dir.length();
+  const m = sh(new THREE.Mesh(new THREE.CylinderGeometry(r2, r, len, 16), mat));
+  m.position.copy(a).addScaledVector(dir, .5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.normalize());
+  parent.add(m); return m;
+}
+const V = (x,y,z) => new THREE.Vector3(x,y,z);
+// Gruppe für das Seitenteil: lokale Front (−z) zeigt zur Barista-Seite (+x), lokales x läuft entlang −z … also: Weltposition (x, z) → Gruppe mit rotation.y = −π/2
+function sideGroup(x, y, z){ const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = -Math.PI/2; scene.add(g); return g; }
+// Gruppe für die Rückwand-Zeile: lokale Front (−z) zeigt zur Barista-Seite (+z)
+function backGroup(x, y, z){ const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = Math.PI; scene.add(g); return g; }
+
+/* =========================================================
+   RAUM: Boden, linke Wand (hinter dem Seitenteil), Rückwand, Decke, Leuchten
+   ========================================================= */
+const floor = sh(new THREE.Mesh(new THREE.PlaneGeometry(1600, 1600)), false, true);
+floor.rotation.x = -Math.PI/2; floor.position.set(300, 0, 0); scene.add(floor);
+surface('floor', floor, 1600, 1600, 'beton');
+
+const backWall = new THREE.Group(); scene.add(backWall);
+{ const w = sh(new THREE.Mesh(new THREE.PlaneGeometry(900, 330)), false, true);
+  w.position.set(250, 165, WALL_B); backWall.add(w);
+  surface('wall', w, 900, 330, 'taupe'); }
+box(900, 7, 2, M.plinth, 250, 3.5, WALL_B + 1, backWall);
+// Inspo 1: Nussbaum-Paneel mit Edelstahl-Rückwand hinter den Regalen + Lautsprecher
+const panel = new THREE.Group(); backWall.add(panel);
+{ const wal = std({ map:texFrom(cWalnutV(), 4.7, 2.6), roughness:.5, normalMap:texFrom(cSlats(), 47, 1, false), normalScale:new THREE.Vector2(.5,.5) });
+  box(470, 260, 3, wal, 210, 130, WALL_B + 1.5, panel);
+  box(430, 104, 1, M.steel, 210, 170, WALL_B + 3.5, panel);
+  const spk = std({ map:texFrom(cWalnutH(), 1, 1), roughness:.45 });
+  box(30, 44, 26, spk, 485, 212, WALL_B + 13, panel);
+  cyl(9, 9, 1.2, M.black, 485, 218, WALL_B + 26.6, panel).rotation.x = Math.PI/2;
+  cyl(4.5, 4.5, 1.2, M.blackGl, 485, 218, WALL_B + 27, panel).rotation.x = Math.PI/2;
+  box(18, 5, 1, M.black, 485, 198, WALL_B + 26.4, panel); }
+const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400), std({ color:0x9a948c, roughness:1 }));
+ceiling.rotation.x = Math.PI/2; ceiling.position.set(300, 330, 0); scene.add(ceiling);
+
+const lamps = new THREE.Group(); scene.add(lamps);
+function lamp(x, z, alongZ=false){
+  const l = cyl(7.5, 7.5, 80, M.paper, x, 222, z, lamps, 40); l.castShadow = false;
+  if (alongZ) l.rotation.x = Math.PI/2; else l.rotation.z = Math.PI/2;
+  for (const d of [-28, 28]){ const p = alongZ ? [x, z+d] : [x+d, z];
+    lamps.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([V(p[0], 229.5, p[1]), V(p[0], 330, p[1])]), new THREE.LineBasicMaterial({ color:0x2b2926 }))); }
+}
+lamp(122, 2); lamp(212, 2); lamp(302, 2); lamp(55, -140, true); lamp(150, -252);
+
+/* =========================================================
+   LICHT
+   ========================================================= */
+scene.add(new THREE.HemisphereLight(0xfff3e4, 0x6c6257, .62));
+const sun = new THREE.DirectionalLight(0xfff4e8, 2.2);
+sun.position.set(560, 620, 330); sun.target.position.set(170, 80, -200);
+sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left:-380, right:380, top:380, bottom:-380, near:100, far:1800 });
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = .6;
+scene.add(sun, sun.target);
+const fill = new THREE.DirectionalLight(0xe4ecff, .55); fill.position.set(700, 300, -600); fill.target.position.set(100, 80, -150); scene.add(fill, fill.target);
+
+/* =========================================================
+   UNTERBAUTEN
+   ========================================================= */
+const counter = new THREE.Group(); scene.add(counter);
+const UB = 82;                      // Oberkante Unterbauten (unter 4-cm-Platte + Fuge)
+function feet(g, pts, h=4){ for (const [x,z] of pts) cyl(1.7,1.7,h, M.steel, x, h/2, z, g, 12); }
+
+// ---- Front: Schubladenschrank 1,2 m (x 0–120): links 2 Türen, rechts 3 Schubladen; Bedienseite −z
+{ const g = new THREE.Group(); g.position.x = DX; counter.add(g); const zf = -35;
+  box(120, UB-4, 70, M.steel, 60, 4+(UB-4)/2, 0, g); feet(g, [[4,-31],[4,31],[116,-31],[116,31]]);
+  const gr = (w,h,x,y) => box(w, h, .5, M.groove, x, y, zf-.2, g);
+  gr(.5, UB-8, 40, 43); gr(.5, UB-8, 80, 43); gr(40, .5, 100, 30); gr(40, .5, 56, 0); gr(40, .5, 100, 56);
+  const hd = (w,h,x,y) => box(w, h, 1.6, M.chrome, x, y, zf-1, g);
+  hd(1.2, 18, 36, 55); hd(1.2, 18, 44, 55); hd(18, 1.2, 100, 72); hd(18, 1.2, 100, 50); hd(18, 1.2, 100, 24);
+}
+// ---- Front: Kühltisch 0,9 m (x 120–210): 4 Schubladen
+{ const g = new THREE.Group(); g.position.x = DX; counter.add(g); const x0 = 120, zf = -35;
+  box(90, UB-5, 70, M.steel, x0+45, 5+(UB-5)/2, 0, g); box(90, 5, 68, M.plinth, x0+45, 2.5, 0, g);
+  box(84, 3.5, .6, M.grate, x0+45, 8.5, zf-.2, g);
+  const gr = (w,h,x,y) => box(w, h, .5, M.groove, x, y, zf-.2, g);
+  gr(.5, 68, x0+45, 46); gr(90, .5, x0+45, 45);
+  const hd = (w,h,x,y) => box(w, h, 1.6, M.chrome, x, y, zf-1, g);
+  for (const xx of [x0+22.5, x0+67.5]) for (const yy of [74, 38]) hd(22, 1.2, xx, yy);
+  box(8, 3, .4, M.screenMa, x0+10, 79, zf-.3, g);
+}
+// ---- Front: Arbeitstisch 1,0 m (x 210–310): offen, Grundboden, darauf Mülltrennung
+{ const g = new THREE.Group(); g.position.x = DX; counter.add(g);
+  for (const [x,z] of [[214,-32],[214,32],[306,-32],[306,32]]){ box(4, UB-3, 4, M.steel, x, (UB-3)/2, z, g); cyl(1.6,1.6,1.5, M.black, x, .75, z, g, 12); }
+  box(100, 3, 70, M.steel, 260, UB-1.5, 0, g);
+  box(96, 1.5, 66, M.steel, 260, 15, 0, g);
+  // Mülltrennung 58 × 27 × 47 auf dem Grundboden
+  const b = new THREE.Group(); b.position.set(259, 15.75, -18.5); g.add(b);
+  box(58, 47, 27, M.steel, 0, 23.5, 0, b);
+  for (const dx of [-19.3, 0, 19.3]){ box(18.5, 1.2, 25, M.steelDark, dx, 47.6, 0, b); box(6, 1.2, 1.5, M.black, dx, 40, -13.8, b); }
+}
+// ---- Seitenteil: Siebträgertisch 1,6 m (GGM ASK167), Schiebetüren zur Barista-Seite
+{ const g = sideGroup(35, 0, -115); counter.add(g); const zf = -35;   // lokal: Breite 160 entlang x, Tiefe 70
+  box(160, UB-4, 70, M.steel, 0, 4+(UB-4)/2, 0, g); feet(g, [[-76,-31],[76,-31],[-76,31],[76,31]]);
+  box(.6, UB-10, .5, M.groove, 0, 43, zf-.2, g);
+  box(1.2, 30, 1.2, M.groove, -6, 50, zf-.6, g); box(1.2, 30, 1.2, M.groove, 6, 50, zf-.6, g);
+}
+// ---- Rückwand-Zeile: Osmoseanlage in der Ecke (stehend, an die Spülmaschine angeschlossen)
+{ const g = backGroup(52, 0, -292);
+  rbox(20.5, 56, 42, 2, M.grey, 0, 28, 0, g); box(14, 8, .4, M.blackGl, 0, 46, -21.2, g); }
+// ---- Rückwand-Zeile: Spülmaschinenschrank 0,6 m (Tisch ohne Grundboden) + Winterhalter UC-S
+{ const g = backGroup(107, 0, -277);
+  for (const [x,z] of [[-28,-32],[28,-32],[-28,32],[28,32]]){ box(4, UB-3, 4, M.steel, x, (UB-3)/2, z, g); }
+  box(60, 3, 70, M.steel, 0, UB-1.5, 0, g);
+  const u = new THREE.Group(); u.position.set(0, 0, -35 + 63.7/2); g.add(u); const zf = -63.7/2;
+  box(46, 70, 63.7, M.steel, 0, 4+35, 0, u);
+  for (const [x,z] of [[-20,-28],[20,-28],[-20,28],[20,28]]) cyl(1.6,1.6,4, M.black, x, 2, z, u, 12);
+  box(46, 8, .8, M.steelDark, 0, 70, zf-.4, u); box(5, 2.2, .3, M.screenMa, -14, 70, zf-.9, u);
+  for (const dx of [-6, -2.5]){ const b = cyl(.8,.8,.5, M.btn, dx, 70, zf-.9, u, 12); b.rotation.x = Math.PI/2; }
+  box(46, .5, .5, M.groove, 0, 65.8, zf-.2, u); box(32, 1.4, 2, M.chrome, 0, 62, zf-1.2, u);
+}
+// ---- Rückwand-Zeile: Spülschrank 0,8 m, Flügeltüren
+{ const g = backGroup(177, 0, -277); const zf = -35;
+  box(80, UB-4, 70, M.steel, 0, 4+(UB-4)/2, 0, g); feet(g, [[-36,-31],[36,-31],[-36,31],[36,31]]);
+  box(.5, UB-10, .5, M.groove, 0, 43, zf-.2, g);
+  box(1.2, 18, 1.6, M.chrome, -4, 58, zf-1, g); box(1.2, 18, 1.6, M.chrome, 4, 58, zf-1, g);
+}
+// ---- Rückwand-Zeile: Froster (Tiefkühltruhe, Deckel oben) frei am offenen Ende
+{ const g = new THREE.Group(); g.position.set(238, 0, -280.5); scene.add(g);
+  rbox(35.5, 85, 63, 1.5, M.freezer, 0, 42.5, 0, g); box(35.6, .5, 63.1, M.groove, 0, 78, 0, g);
+  box(14, 1.5, 2, M.black, 0, 74, 32, g); box(30, 2, 1, M.grate, 0, 6, 32, g); }
+
+// ---- Verkleidung zu den Gästen (einstellbar): Front, runde Ecke R 60 (Inspo 2), Außenseite + Stirnseiten, Sockel
+const RC = 60, CX = 57.5, CZ = -22.5;                    // Mittelpunkt der Eckrundung (Verkleidung), Platte R 62,5
+{ const plane = (w, x, z, ry) => { const m = sh(new THREE.Mesh(new THREE.PlaneGeometry(w, 78)), false, true); m.position.set(x, 5+39, z); m.rotation.y = ry; counter.add(m); surface('front', m, w, 78, 'stahl_glatt'); return m; };
+  plane(352 - CX, (CX + 352)/2, 37.5, 0);                         // Front gerade
+  plane(CZ - WALL_B, -2.5, (CZ + WALL_B)/2, -Math.PI/2);   // Außenseite Seitenteil bis zur Rückwand
+  plane(72.5, 352, 1.25, Math.PI/2);                               // Stirnseite rechts
+  const arc = sh(new THREE.Mesh(new THREE.CylinderGeometry(RC, RC, 78, 40, 1, true, 1.5*Math.PI, .5*Math.PI)), false, true);
+  arc.position.set(CX, 5+39, CZ); counter.add(arc); surface('front', arc, RC*Math.PI/2, 78, 'stahl_glatt');
+  box(352 - CX - 4, 5, 2, M.plinth, (CX + 348)/2, 2.5, 34.5, counter);
+  box(2, 5, CZ - WALL_B - 4, M.plinth, 1.5, 2.5, (CZ + WALL_B + 2)/2, counter);
+  box(2, 5, 66, M.plinth, 348, 2.5, 1, counter);
+  const pa = new THREE.Mesh(new THREE.CylinderGeometry(RC-4, RC-4, 5, 32, 1, true, 1.5*Math.PI, .5*Math.PI), M.plinth); pa.position.set(CX, 2.5, CZ); counter.add(pa);
+}
+
+// ---- Arbeitsplatte Edelstahl als durchgehendes L (4 cm), runde Außenecke R 62,5
+{ const s2 = new THREE.Shape();                 // Shape-Koordinaten (x, −z)
+  s2.moveTo(CX, -FRONT.zFront); s2.lineTo(FRONT.x1, -FRONT.zFront); s2.lineTo(FRONT.x1, -FRONT.zBack); s2.lineTo(SIDE.x1, -FRONT.zBack);
+  s2.lineTo(SIDE.x1, -BACK.z0); s2.lineTo(BACK.x1, -BACK.z0); s2.lineTo(BACK.x1, -BACK.z1); s2.lineTo(FRONT.x0, -BACK.z1); s2.lineTo(FRONT.x0, -CZ);
+  s2.absarc(CX, -CZ, RC + 2.5, Math.PI, 1.5*Math.PI, false); s2.closePath();
+  const geo = new THREE.ExtrudeGeometry(s2, { depth:3.4, bevelEnabled:true, bevelThickness:.3, bevelSize:.3, bevelSegments:2, curveSegments:28 });
+  geo.rotateX(-Math.PI/2);
+  mk(geo, M.steelW, 0, TOP-4+.3, 0, counter);
+  box(BACK.x1 - BACK.x0, 10, 1.5, M.steelW, (BACK.x0 + BACK.x1)/2, TOP+5, WALL_B + .75, counter);   // Aufkantung an der Rückwand
+}
+
+/* =========================================================
+   GERÄTE AUF DER PLATTE
+   ========================================================= */
+// ---------- Siebträger La Marzocco Linea PB 2-gruppig (lokal: Front = −z)
+{ const it = byId.st, g = sideGroup(it.cx, TOP, it.zc);
+  const W = 70, HW = W/2;
+  for (const [x,z] of [[-31,-12],[31,-12],[-31,25],[31,25]]) cyl(1.8,2.1,2.5, M.chrome, x, 1.25, z, g, 16);
+  const s = new THREE.Shape(); s.moveTo(14, 2.5); s.lineTo(-29.5, 2.5); s.lineTo(-29.5, 47); s.lineTo(10, 47); s.lineTo(14, 43); s.closePath();
+  const geo = new THREE.ExtrudeGeometry(s, { depth: W-1, bevelEnabled:true, bevelThickness:.5, bevelSize:.5, bevelSegments:2 });
+  geo.rotateY(Math.PI/2); geo.translate(-HW+.5, 0, 0); mk(geo, M.steelW, 0, 0, 0, g);
+  box(66, 4.5, 15, M.steel, 0, 6.2, -21.5, g); box(64, .6, 13, M.grate, 0, 8.6, -21.5, g);
+  for (let i=0;i<8;i++) box(64, .5, .7, M.chrome, 0, 9.1, -27.5 + i*1.75, g);
+  box(64, .8, 36, M.steelDark, 0, 47.4, 9.5, g); box(66, 5.5, .8, M.chrome, 0, 50.55, 28.6, g);
+  for (const x of [-32.8, 32.8]) box(.8, 5.5, 38, M.chrome, x, 50.55, 9.6, g);
+  box(66, 2.2, .8, M.chrome, 0, 48.9, -9.3, g);
+  for (let i=0;i<5;i++) cyl(3.0, 3.8, 6.2, M.ceramic, -24 + i*12, 47.8+3.1, 17, g, 24);
+  for (let i=0;i<4;i++) cyl(3.0, 3.8, 6.2, M.ceramic, -18 + i*12, 47.8+3.1, 5, g, 24);
+  box(56, 7, .6, M.blackGl, 0, 38.5, -14.6, g); box(7, 3.4, .3, M.screenMa, 0, 38.5, -15.0, g);
+  for (const gx of [-16, 16]) for (const dx of [-4.5,-1.5,1.5,4.5]){ const b = cyl(.85,.85,.6, M.btn, gx+dx, 38.5, -15.0, g, 16); b.rotation.x = Math.PI/2; }
+  for (const gx of [-16, 16]){
+    rbox(13, 9, 9, 1.2, M.chrome, gx, 31, -17.5, g); cyl(5.2, 5.2, 4, M.chrome, gx, 25, -19, g); cyl(4.6, 4.3, 3.2, M.steel, gx, 21.4, -19.5, g);
+    cyl(.5,.5,2, M.chrome, gx-1.2, 19, -19.5, g, 8); cyl(.5,.5,2, M.chrome, gx+1.2, 19, -19.5, g, 8);
+    tube(V(gx, 21.4, -24), V(gx, 21.2, -26.5), 1.9, M.chrome, g); tube(V(gx, 21.2, -26.5), V(gx, 19.4, -39), 1.5, M.black, g, 1.75);
+  }
+  for (const sx of [-1, 1]){ const x = sx*29.5;
+    box(3.2, 3.2, 3, M.chrome, x, 35.5, -15.6, g); tube(V(x, 37, -16.5), V(x+sx*1.2, 42.5, -21), 1, M.black, g, 1.3);
+    tube(V(x, 34, -16.5), V(x+sx*1.5, 12, -22), .55, M.chrome, g); mk(new THREE.SphereGeometry(.75, 12, 8), M.chrome, x+sx*1.5, 11.6, -22, g); }
+  tube(V(0, 31, -15.2), V(0, 24, -17.5), .55, M.chrome, g);
+}
+// ---------- Kaffeeabklopfer GGM KSK1041 (82 × 51 × 11,5), 2 Schubladen zur Barista-Seite
+{ const it = byId.abk, g = sideGroup(it.cx, TOP, it.zc);       // lokal: 82 entlang x, 51 Tiefe
+  box(82, 11.5, 51, M.steel, 0, 5.75, 0, g);
+  for (const dx of [-20.5, 20.5]){ box(39, 9, .6, M.steel, dx, 5.6, -25.8, g); box(14, 1.2, 1.6, M.chrome, dx, 7.5, -26.5, g); }
+  // Abschlagöffnungen mit Stange im freien Bereich (vordere Hälfte, rechts)
+  for (const dx of [-18, -33]){ box(11, .4, 14, M.blackGl, dx, 11.6, -12, g); tube(V(dx-5, 12.6, -12), V(dx+5, 12.6, -12), .7, M.black, g); }
+}
+// ---------- Kaffeemühle 1: Mahlkönig E65S GbW (auf dem Abklopfer)
+{ const g = sideGroup(34.15, TOP+11.5, SIDE.z0 - 80 - 19.5/2);
+  rbox(19.5, 3.5, 28.3, 1.2, M.black, 0, 1.75, 0, g); box(11, .8, 9, M.grate, 0, 3.9, -8.5, g);
+  rbox(19.5, 27, 18, 2, M.black, 0, 16.5, 5, g); rbox(19.5, 21, 27, 2.5, M.black, 0, 34.5, .5, g);
+  box(4, 4, 4, M.black, 0, 22.5, -10.8, g); for (const sx of [-3.6, 3.6]) box(1.2, 1.4, 6, M.steelDark, sx, 18.5, -10.5, g);
+  const scr = mk(new THREE.PlaneGeometry(9, 5.5), M.screenGr, 0, 37.5, -13.05, g); scr.rotation.y = Math.PI;
+  cyl(7.6, 7.6, 2, M.chrome, 0, 46, .5, g); cyl(8.9, 7.4, 14, M.hopper, 0, 54, .5, g, 40).castShadow = false;
+  cyl(8.0, 7.2, 7.5, M.beans, 0, 50.8, .5, g); cyl(9.1, 9.1, 1.6, M.black, 0, 61.2, .5, g);
+}
+// ---------- Kaffeemühle 2: Eureka Atom 65 Digital (auf dem Abklopfer)
+{ const g = sideGroup(32.5, TOP+11.5, SIDE.z0 - 104 - 19/2);
+  rbox(19, 3, 23, 1, M.chrome, 0, 1.5, 0, g); rbox(19, 21, 15.5, 3, M.chrome, 0, 13.5, 3.7, g); rbox(19, 11, 21, 3, M.chrome, 0, 25.5, -1, g);
+  const scr = mk(new THREE.PlaneGeometry(6.5, 4), M.screenGr, 0, 26, -11.55, g); scr.rotation.y = Math.PI;
+  box(3, 3, 3, M.chrome, 0, 18.5, -10, g); for (const sx of [-3, 3]) box(1, 1.2, 5, M.steelDark, sx, 14, -9.5, g);
+  cyl(8.4, 6.6, 12, M.hopper, 0, 36.5, -1, g, 40).castShadow = false; cyl(7.2, 6.5, 5.5, M.beans, 0, 33.4, -1, g); cyl(8.6, 8.6, 1.2, M.chrome, 0, 42.6, -1, g);
+}
+// ---------- Wasserkocher ×2 (Gooseneck) auf der Arbeitsfläche
+for (const z of [-207, -227]){
+  const g = sideGroup(42, TOP, z);
+  cyl(8, 8.4, 2, M.black, 0, 1, 0, g, 28); cyl(5.6, 6.6, 13, M.black, 0, 9.5, 0, g, 28); cyl(5.8, 5.6, 1.2, M.black, 0, 16.6, 0, g, 28);
+  cyl(1, 1, 2.2, M.black, 0, 18.2, 0, g, 12);
+  const h = mk(new THREE.TorusGeometry(4.5, .9, 8, 20, Math.PI), M.black, 0, 10, 7.5, g); h.rotation.set(0, Math.PI/2, Math.PI/2);
+  tube(V(0, 4.5, -6), V(0, 15, -12), .7, M.black, g); tube(V(0, 15, -12), V(0, 15.5, -16), .55, M.black, g, .45);
+}
+// ---------- Spüle 55 × 43 mit Tassenspüle + Talis M54 + Absperrventil F21
+{ const it = byId.sp, g = backGroup(it.cx, TOP, it.zc);           // lokal: 55 entlang x, 43 Tiefe
+  box(55, .25, 43, M.steel, 0, .12, 0, g);
+  box(50, .3, 36, M.basin, -2, .26, 1.5, g);
+  cyl(2.2, 2.2, .35, M.steelDark, -8, .3, 4, g, 24);
+  cyl(5.2, 5.2, .4, M.steelDark, 17, .32, 7, g, 28);                          // Tassenspüle (Drucksternplatte)
+  for (let k=0;k<6;k++){ const a = k/6*Math.PI*2; box(4, .45, .6, M.chrome, 17+Math.cos(a)*2, .45, 7+Math.sin(a)*2, g).rotation.y = -a; }
+  // Armatur Talis M54 (Ausziehauslauf) hinten an der Wandseite
+  cyl(2.8, 2.9, 3, M.alu, -4, 1.5, 18, g, 24); cyl(2.4, 2.6, 18, M.alu, -4, 12, 18, g, 24);
+  tube(V(-4, 21, 18), V(-4, 28, 12), 1.3, M.alu, g); tube(V(-4, 28, 12), V(-4, 27, 0), 1.3, M.alu, g); tube(V(-4, 27, 0), V(-4, 22, -3), 1.4, M.alu, g, 1.2);
+  box(1.2, 1.2, 7, M.alu, -7.4, 17, 18, g).rotation.x = -.5;
+  // Absperrventil F21 (Ø 4,8, H 8,2) für die Tassenspüle
+  cyl(2.4, 2.4, 6.2, M.alu, 17, 3.1, 18, g, 20); cyl(1.2, 1.2, 2, M.alu, 17, 7.2, 18, g, 12); box(.8, .8, 4, M.alu, 17, 7.6, 16.5, g);
+}
+// ---------- Vitrine (Holzrahmen + Glas, 2 Ebenen, Schiebetüren Barista-Seite)
+{ const it = byId.vitrine, g = new THREE.Group(); g.position.set(it.cx, TOP, it.zc); scene.add(g);
+  const W=60, D=35;
+  box(W, 2.5, D, M.walnut, 0, 1.25, 0, g); box(W-4, .2, D-4, M.kraft, 0, 2.6, 0, g);
+  for (const [x,z] of [[-29,-16.5],[29,-16.5],[-29,16.5],[29,16.5]]) box(2, 31.5, 2, M.walnut, x, 2.5+15.75, z, g);
+  for (const z of [-16.25, 16.25]) box(W, 2, 2.5, M.walnut, 0, 35, z, g);
+  for (const x of [-28.75, 28.75]) box(2.5, 2, D-5, M.walnut, x, 35, 0, g);
+  const glass = (w,h,x,y,z,ry=0) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w,h), M.glass); m.position.set(x,y,z); m.rotation.y = ry; m.renderOrder = 2; g.add(m); };
+  glass(56, 31.5, 0, 18.25, 17.3); glass(31, 31.5, -29.6, 18.25, 0, Math.PI/2); glass(31, 31.5, 29.6, 18.25, 0, Math.PI/2);
+  glass(30, 31.5, -13, 18.25, -16.8); glass(30, 31.5, 13, 18.25, -17.4);
+  { const t = new THREE.Mesh(new THREE.PlaneGeometry(55, 30), M.glass); t.rotation.x = -Math.PI/2; t.position.set(0, 35.6, 0); t.renderOrder = 2; g.add(t); }
+  { const t = new THREE.Mesh(new THREE.BoxGeometry(56, .5, 31), M.glass); t.position.set(0, 18.5, 0); t.renderOrder = 2; g.add(t); }
+  for (const [x,z] of [[-25,-17.9],[25,-18.5]]) box(1, 15, 1, M.walnut, x, 18, z, g);
+  const knot = new THREE.TorusKnotGeometry(3.3, 1.55, 90, 10, 2, 3), r = rng(21);
+  for (const [x,z] of [[-19,-6],[-6,-6],[7,-6],[20,-6],[-13,7],[0,7],[13,7]]){ const m = mk(knot, r()>.4?M.pastry:M.pastry2, x, 4.5, z, g); m.rotation.set(Math.PI/2, 0, r()*6.28); m.scale.set(1,1,.55); }
+  const roll = new THREE.TorusGeometry(2.9, 1.7, 12, 28);
+  for (const [x,z] of [[-20,-5],[-8,-5],[4,-5],[16,-5],[-14,7],[-2,7],[10,7],[22,7]]){ const m = mk(roll, M.pastry2, x, 20.1, z, g); m.rotation.x = Math.PI/2; m.scale.set(1,1,.75); }
+}
+// ---------- iPad (Schwenkständer, Bildschirm zur Barista-Seite)
+{ const it = byId.ipad, g = new THREE.Group(); g.position.set(it.cx, TOP, it.zc); scene.add(g);
+  cyl(5.5, 5.8, .8, M.alu, 0, .4, 0, g); cyl(1.05, 1.05, 13, M.alu, 0, 7.3, 0, g, 16); mk(new THREE.SphereGeometry(1.7, 16, 12), M.alu, 0, 14, 0, g);
+  const tab = new THREE.Group(); tab.position.set(0, 24.2, .6); tab.rotation.x = .36; g.add(tab);
+  rbox(29.7, 21.4, .65, .7, M.alu, 0, 0, 0, tab);
+  const scr = mk(new THREE.PlaneGeometry(28.2, 19.9), M.screenPOS, 0, 0, -.34, tab); scr.rotation.y = Math.PI; box(4, 4, 1.4, M.alu, 0, -1, .9, tab);
+}
+// ---------- Kartenterminal im Dock (zum Gast geneigt)
+function terminal(parent, x, y, z, tilt){
+  // Handterminal mit Bondrucker oben (kein Telefon): breiter Griff, Druckerbuckel, Papierschlitz, Bon
+  const t = new THREE.Group(); t.position.set(x, y, z); t.rotation.x = tilt; parent.add(t);
+  rbox(8.6, 17.5, 2.4, .9, M.black, 0, 0, 0, t);
+  const hump = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 8.6, 24), M.black); hump.rotation.z = Math.PI/2; hump.position.set(0, 7.4, -1.3); t.add(hump);
+  box(7.2, .25, .5, M.alu, 0, 9.6, -1.1, t);
+  const bon = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 3.2), std({ color:0xfbfaf6, roughness:.9, side:THREE.DoubleSide })); bon.position.set(0, 11.1, -1.1); bon.rotation.x = -.25; t.add(bon);
+  mk(new THREE.PlaneGeometry(6.8, 9.2), M.screenTm, 0, 1.4, 1.22, t);
+  for (let i=0;i<3;i++) box(1.6, .5, .3, M.alu, -2.2 + i*2.2, -5.6, 1.25, t);
+  box(5.5, .35, .3, M.alu, 0, -7.6, 1.25, t);
+  return t;
+}
+{ const g = new THREE.Group(); g.position.set(296, TOP, 28); scene.add(g);
+  rbox(10, 3, 9, 1, M.black, 0, 1.5, 0, g); terminal(g, 0, 10, -1, -.35); }
+// ---------- Blumenstrauß auf der runden Ecke (Inspo 2)
+const deco = new THREE.Group(); scene.add(deco);
+{ const g = new THREE.Group(); g.position.set(36, TOP, 4); deco.add(g);
+  cyl(8.5, 7, 26, M.ceramic, 0, 13, 0, g, 32);
+  const r = rng(77), stem = std({ color:0x5f7a45, roughness:.7 }), petal = std({ color:0xf8f6f0, roughness:.55 }), leaf = std({ color:0x6e8a4e, roughness:.7, side:THREE.DoubleSide });
+  for (let i=0;i<13;i++){
+    const a = r()*6.28, rad = 5 + r()*18, h = 40 + r()*38, top = V(Math.cos(a)*rad, 26 + h, Math.sin(a)*rad);
+    tube(V(Math.cos(a)*2.5, 24, Math.sin(a)*2.5), top, .35, stem, g);
+    for (let k=0;k<5;k++){ const pm = mk(new THREE.SphereGeometry(2.4 + r()*.8, 10, 8), petal, top.x + Math.cos(a)*k*2.2 + (r()-.5)*2, top.y - k*4.5, top.z + Math.sin(a)*k*2.2 + (r()-.5)*2, g); pm.scale.set(1, .5, 1); }
+  }
+  for (let i=0;i<7;i++){ const a = r()*6.28, l = mk(new THREE.PlaneGeometry(4.5, 42), leaf, Math.cos(a)*9, 44, Math.sin(a)*9, g); l.rotation.set((r()-.5)*.9, a, (r()-.5)*1.3); }
+}
+// ---------- Gläserregale (2 Sets à 3 Böden 200 × 40) mit Gläsern & Tassen
+const shelves = new THREE.Group(); scene.add(shelves);
+function glassesRow(parent, n, spacing, kind){
+  const geo = kind === 'wine' ? new THREE.CylinderGeometry(3.6, 1.2, 9, 16) : kind === 'cup' ? new THREE.CylinderGeometry(4.2, 3.4, 7.5, 18) : new THREE.CylinderGeometry(3.6, 3.2, 11, 16);
+  const mat = kind === 'cup' ? M.ceramic : M.drinkGlass;
+  const im = new THREE.InstancedMesh(geo, mat, n); const m4 = new THREE.Matrix4();
+  for (let i=0;i<n;i++){ m4.makeTranslation((i - (n-1)/2)*spacing, kind === 'wine' ? 12 : kind === 'cup' ? 3.75 : 5.5, 0); im.setMatrixAt(i, m4); }
+  if (kind === 'wine'){ const stem = new THREE.InstancedMesh(new THREE.CylinderGeometry(.4,.4,7,8), M.drinkGlass, n); const base = new THREE.InstancedMesh(new THREE.CylinderGeometry(3,3,.4,16), M.drinkGlass, n);
+    for (let i=0;i<n;i++){ m4.makeTranslation((i - (n-1)/2)*spacing, 3.7, 0); stem.setMatrixAt(i, m4); m4.makeTranslation((i - (n-1)/2)*spacing, .2, 0); base.setMatrixAt(i, m4); } parent.add(stem, base); }
+  parent.add(im); return im;
+}
+function shelfSet(x, z, rotY){
+  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rotY; shelves.add(g);
+  [140, 172, 204].forEach((y, i) => {
+    box(200, 2.4, 40, M.steel, 0, y, 20, g);
+    for (const dx of [-80, 0, 80]){ box(2, 14, 2, M.steelDark, dx, y-8, 1.5, g); box(2, 2, 30, M.steelDark, dx, y-2.2, 16, g); }
+    const row = new THREE.Group(); row.position.set(0, y+1.2, 22); g.add(row);
+    glassesRow(row, 18, 10.5, ['wine','cup','tumbler'][i]);
+  });
+}
+shelfSet(95, WALL_B + 4, 0);              // Rückwand links (auf dem Nussbaum-Paneel)
+shelfSet(305, WALL_B + 4, 0);              // Rückwand rechts
+
+// ---------- markierte Freiflächen + Grundriss-Konturen
+for (const it of ITEMS.filter(i => i.area)){
+  const isSide = it.leg === 'side';
+  const p = new THREE.Mesh(new THREE.PlaneGeometry(isSide ? 76 : it.w, isSide ? it.w : 76),
+    new THREE.MeshBasicMaterial({ color:it.c, transparent:true, opacity:it.id === 'aus' ? .17 : .12, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-2 }));
+  p.rotation.x = -Math.PI/2; p.position.set(isSide ? 38.5 : it.cx, TOP+.05, isSide ? it.zc : (it.leg === 'front' ? 1.5 : -275.5)); scene.add(p);
+}
+const FOOT = {
+  st:[3,62,-111,-40], abk:[20,71,-195,-113], af:[1,76,-236,-197],
+  ecke:[-4,76,-313,-238], sm:[77,137,-313,-238], sp:[149.5,204.5,-298.5,-255.5], froster:[220.25,255.75,-312,-249],
+  vitrine:[117,177,-2.5,32.5], aus:[182,232,-36,39], ipad:[310,339.7,10,30],
+};
+for (const it of ITEMS){
+  const [x0,x1,z0,z1] = FOOT[it.id], y = TOP+.12;
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([V(x0,y,z0),V(x1,y,z0),V(x1,y,z1),V(x0,y,z1),V(x0,y,z0)]),
+    it.area ? new THREE.LineDashedMaterial({ color:it.c, dashSize:3, gapSize:2 }) : new THREE.LineBasicMaterial({ color:it.c }));
+  line.computeLineDistances(); scene.add(line);
+}
+
+/* =========================================================
+   BESCHRIFTUNG (CSS2D) mit Stielen + Entzerrung
+   ========================================================= */
+const labelGroup = new THREE.Group(); scene.add(labelGroup);
+const smallGroup = new THREE.Group(); scene.add(smallGroup);
+const unitLabelGroup = new THREE.Group(); scene.add(unitLabelGroup);
+const LABELS = [];
+let labelMode = 'normal';
+function makeLabel(group, { name, w, model, c, labelY, plan }, base, small){
+  const wrap = document.createElement('div'); wrap.className = 'lblwrap';
+  const el = document.createElement('div'); el.className = 'lbl' + (small ? ' small' : ''); el.style.setProperty('--c', c);
+  el.innerHTML = w ? `${name} <b>${fmt(w)} cm</b><span class="m">${model}</span>` : `${name}<span class="m">${model}</span>`;
+  const stem = document.createElement('div'); stem.className = 'stem'; wrap.append(el, stem);
+  const normal = V(base.x, labelY, base.z);
+  const o = new CSS2DObject(wrap); o.center.set(.5, 1); o.position.copy(normal); group.add(o);
+  const ln = new THREE.Line(new THREE.BufferGeometry().setFromPoints([base, normal]), new THREE.LineBasicMaterial({ color:0x3a3530, transparent:true, opacity:.75 }));
+  ln.frustumCulled = false; group.add(ln);
+  const dot = new THREE.Mesh(new THREE.SphereGeometry(small ? .6 : .9, 12, 8), new THREE.MeshBasicMaterial({ color:c })); dot.position.copy(base); group.add(dot);
+  LABELS.push({ o, ln, base, normal, wrap, el, stem, off:0, group, plan:V(plan[0], TOP+1, plan[1]), planC:[plan[2], plan[3]] });
+}
+for (const it of ITEMS){
+  const base = it.anchor ? V(...it.anchor) : V(it.cx, it.top + .6, it.zc);
+  makeLabel(labelGroup, it, base, false);
+}
+for (const s of SMALL) makeLabel(smallGroup, { ...s, w:0 }, V(...s.pos), true);
+for (const u of UNITS){
+  const el = document.createElement('div'); el.className = 'lbl unit';
+  el.innerHTML = `${u.name}<span class="m">${u.model}</span>`;
+  const o = new CSS2DObject(el); o.center.set(.5,.5); o.position.set(...u.pos); unitLabelGroup.add(o);
+}
+function setLabelMode(mode){
+  if (mode === labelMode) return; labelMode = mode;
+  document.body.classList.toggle('planview', mode === 'plan');
+  for (const L of LABELS){
+    const p = L[mode]; L.o.position.copy(p);
+    if (mode === 'plan') L.o.center.set(...L.planC); else L.o.center.set(.5, 1);
+    L.ln.geometry.setFromPoints([L.base, p]);
+  }
+}
+function declutter(active){
+  const boxes = [];
+  for (const L of LABELS){
+    if (!active || L.wrap.style.display === 'none'){ L.off = 0; L.el.style.transform = ''; L.stem.style.height = '0px'; continue; }
+    const r = L.wrap.getBoundingClientRect(); boxes.push({ L, x0:r.left, x1:r.right, y1:r.bottom, h:r.height });
+  }
+  boxes.sort((a,b) => b.y1 - a.y1);
+  const placed = [];
+  for (const b of boxes){
+    let off = 0, moved = true, guard = 0;
+    while (moved && guard++ < 14){ moved = false;
+      for (const p of placed){ const top = b.y1 - off - b.h, bot = b.y1 - off;
+        if (b.x0 < p.x1 + 4 && b.x1 > p.x0 - 4 && top < p.bot + 3 && bot > p.top - 3){ off = b.y1 - p.top + 4; moved = true; } } }
+    placed.push({ x0:b.x0, x1:b.x1, top:b.y1 - off - b.h, bot:b.y1 - off });
+    const L = b.L; L.off += (off - L.off) * .35; if (Math.abs(off - L.off) < .5) L.off = off;
+    L.el.style.transform = L.off ? `translateY(${-L.off}px)` : ''; L.stem.style.height = `${L.off}px`;
+  }
+}
+
+/* =========================================================
+   MASSKETTEN (Front / Seitenteil, jeweils Ansicht + Draufsicht)
+   ========================================================= */
+function buildRun(grp, segs, P0, D, N, plan, totalText, frontOff, frontY, planOff=26){
+  const pt = (s, off=0, dy=0) => P0.clone().addScaledVector(D, s).addScaledVector(N, off).add(V(0, dy, 0));
+  const alongZ = Math.abs(D.z) > .5;
+  const matGap = new THREE.MeshBasicMaterial({ color:0x8a847c }), matTick = new THREE.MeshBasicMaterial({ color:0x2b2723 });
+  const len = segs.reduce((a,s) => a+s.w, 0);
+  const planCenter = Math.abs(N.x) > .5 ? (N.x > 0 ? [0,.5] : [1,.5]) : [.5, 0];
+  for (const s of segs){
+    const th = s.gap ? .35 : .7;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(alongZ ? th : s.w, th, alongZ ? s.w : th), s.gap ? matGap : new THREE.MeshBasicMaterial({ color:s.it.c }));
+    m.position.copy(pt(s.a + s.w/2)); grp.add(m);
+    const el = document.createElement('div'); el.className = 'dim' + (s.gap ? ' gap' : ''); el.style.setProperty('--c', s.gap ? '#7c766e' : s.it.c);
+    el.textContent = s.gap ? (s.w >= 4 ? `frei ${fmt(s.w)}` : fmt(s.w)) : fmt(s.w);
+    const o = new CSS2DObject(el);
+    if (plan){ o.center.set(...planCenter); o.position.copy(pt(s.a + s.w/2, s.gap && !alongZ ? 12 : 4)); }
+    else     { o.center.set(.5, 0); o.position.copy(pt(s.a + s.w/2, 0, s.gap ? -12 : -5)); }
+    grp.add(o);
+  }
+  let acc = 0; const ticks = [0]; for (const s of segs){ acc += s.w; ticks.push(acc); }
+  for (const s of ticks){
+    const t1 = new THREE.Mesh(new THREE.BoxGeometry(.35, 6, .35), matTick); t1.position.copy(pt(s)); grp.add(t1);
+    const t2 = new THREE.Mesh(new THREE.BoxGeometry(alongZ ? 6 : .35, .35, alongZ ? .35 : 6), matTick); t2.position.copy(pt(s)); grp.add(t2);
+  }
+  const off = plan ? planOff : frontOff, dy = plan ? 0 : frontY - P0.y;
+  const tot = new THREE.Mesh(new THREE.BoxGeometry(alongZ ? .45 : len, .45, alongZ ? len : .45), matTick); tot.position.copy(pt(len/2, off, dy)); grp.add(tot);
+  for (const s of [0, len]){ const a = new THREE.Mesh(plan ? new THREE.BoxGeometry(alongZ ? 8 : .45, .45, alongZ ? .45 : 8) : new THREE.BoxGeometry(.45, 8, .45), matTick); a.position.copy(pt(s, off, dy)); grp.add(a); }
+  const el = document.createElement('div'); el.className = 'dim total'; el.textContent = totalText;
+  const o = new CSS2DObject(el);
+  if (plan){ o.center.set(...planCenter); o.position.copy(pt(len/2, off + 3)); } else { o.center.set(.5, 1.15); o.position.copy(pt(len/2, off, dy)); }
+  grp.add(o);
+}
+function buildChains(plan){
+  const grp = new THREE.Group(); scene.add(grp);
+  const gFront = new THREE.Group(), gSide = new THREE.Group(), gOut = new THREE.Group(), gBack = new THREE.Group(); grp.add(gFront, gSide, gOut, gBack);
+  const y = plan ? TOP+.6 : TOP-.6;
+  buildRun(gFront, SEGS_FRONT, V(FRONT.x0, y, plan ? 46 : 41.6), V(1,0,0), V(0,0,1), plan, 'Front 357 cm (Platte)', -4.1, 30);
+  if (!plan) buildRun(gOut, [{ gap:false, a:0, w:40 - WALL_B, it:{ c:'#2b2723' } }], V(-7.1, y, 40), V(0,0,-1), V(-1,0,0), false, `Seitenteil außen ${fmt(40 - WALL_B)} cm`, -3.9, 30);
+  buildRun(gBack, SEGS_BACK, V(BACK.x0, y, plan ? -233 : -235.4), V(1,0,0), V(0,0,1), plan, 'Rückwand-Zeile 260,5 cm', -5.9, 30, 22);
+  buildRun(gSide, SEGS_SIDE, V(plan ? 81 : 78.6, y, SIDE.z0), V(0,0,-1), V(1,0,0), plan, 'Seitenteil 200 cm (bis Rückwand-Zeile)', -8.6, 30, 20);
+  const el = document.createElement('div'); el.className = 'dim total grand'; el.textContent = 'U-Theke an der Rückwand · Front 357 · Seite 354 · Rückwand 260,5 cm';
+  const o = new CSS2DObject(el);
+  if (plan){ o.center.set(0, 0); o.position.set(372, TOP+.6, 60); } else { o.center.set(0, .5); o.position.set(360, 62, 38); }
+  gFront.add(o);
+  grp.userData = { gFront, gSide, gOut, gBack };
+  return grp;
+}
+const chainView = buildChains(false), chainPlan = buildChains(true);
+function setGroupVisible(grp, v){ grp.visible = v; grp.traverse(o => { o.visible = v; }); }
+
+/* =========================================================
+   ANSICHTEN
+   ========================================================= */
+const VIEWS = {
+  kunde:      { t:[175,118,-40],  d:[0,.26,1],        hw:205, hh:110, cap:'Kundenansicht' },
+  links:      { t:[150,100,-130], d:[-.85,.5,.75],    hw:250, hh:160, cap:'Perspektive von links (runde Ecke + Seitenteil)' },
+  rechts:     { t:[170,95,-140],  d:[.85,.55,.62],    hw:250, hh:150, cap:'Perspektive von rechts (Zugang Barista)' },
+  barista:    { t:[60,102,-262],  d:[.82,.3,.48],     hw:150, hh:80,  cap:'Barista-Ansicht: Seitenteil + Rückwand-Zeile' },
+  draufsicht: { t:[170,87,-140],  d:[0,1,.03],        hw:250, hh:235, cap:'Draufsicht / Grundriss' },
+  unterbau:   { t:[100,45,-220],  d:[.9,.12,.4],      hw:190, hh:62,  cap:'Unterbau (Barista-Seite)' },
+};
+let current = 'rechts';
+function viewPose(name){
+  const v = VIEWS[name], tan = Math.tan(THREE.MathUtils.degToRad(camera.fov/2));
+  const asp = (isFinite(camera.aspect) && camera.aspect > 0) ? camera.aspect : 1.6;
+  const dist = Math.max(v.hw/(tan*asp), v.hh/tan) * 1.06 + 40;
+  const target = V(...v.t);
+  return { pos: target.clone().addScaledVector(V(...v.d).normalize(), dist), target };
+}
+function goView(name, instant=false){
+  if (name === 'rundgang'){ startWalk(); return; }
+  if (!VIEWS[name]) name = 'rechts';
+  leaveWalk();
+  current = name;
+  document.querySelectorAll('#views button').forEach(b => b.classList.toggle('on', b.dataset.v === name));
+  document.getElementById('caption').innerHTML = `<b>${VIEWS[name].cap}</b> · Tresen · U-Theke an der Rückwand`;
+  const fromF = camera.fov; camera.fov = 38; camera.updateProjectionMatrix();
+  const p = viewPose(name);
+  const bad = !isFinite(camera.position.x + camera.position.y + camera.position.z + controls.target.x + controls.target.y + controls.target.z);
+  userMoved = false;
+  if (instant || bad){ tween = null; camera.position.copy(p.pos); controls.target.copy(p.target); controls.update(); }
+  else { tween = { t0: performance.now(), dur: 950, fromP: camera.position.clone(), fromT: controls.target.clone(), toP: p.pos, toT: p.target, fromF, toF: 38 };
+         if (fromF !== 38){ camera.fov = fromF; camera.updateProjectionMatrix(); } }
+  try { if (location.hash !== '#'+name) history.replaceState(null, '', '#'+name); } catch(e) {}
+}
+const ease = t => t<.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
+document.querySelectorAll('#views button').forEach(b => b.addEventListener('click', () => goView(b.dataset.v)));
+addEventListener('hashchange', () => { const h = location.hash.slice(1); if (h === 'rundgang'){ if (!walk.on) startWalk(); } else if (VIEWS[h] && (h !== current || walk.on)) goView(h); });
+
+/* =========================================================
+   OPTIONEN / PANEL
+   ========================================================= */
+const $ = id => document.getElementById(id);
+const state = { labels:true, small:true, dims:true, units:false, shelves:true, panel:true, deco:true };
+const pref = (k, d) => { try { return localStorage.getItem('laib2_'+k) || d; } catch(e){ return d; } };
+const save = (k, v) => { try { localStorage.setItem('laib2_'+k, v); } catch(e){} };
+$('optLabels').addEventListener('change', e => state.labels = e.target.checked);
+$('optSmall').addEventListener('change', e => state.small = e.target.checked);
+$('optDims').addEventListener('change', e => state.dims = e.target.checked);
+$('optUnits').addEventListener('change', e => state.units = e.target.checked);
+$('optShelves').addEventListener('change', e => state.shelves = e.target.checked);
+$('optPanel').addEventListener('change', e => state.panel = e.target.checked);
+$('optDeco').addEventListener('change', e => state.deco = e.target.checked);
+$('optModel').addEventListener('change', e => document.body.classList.toggle('nomodel', !e.target.checked));
+for (const [sel, group] of [['optFront','front'],['optWall','wall'],['optFloor','floor']]){
+  const s = $(sel); s.value = pref(group, s.value); if (!SURF[group][s.value]) s.value = s.options[0].value;
+  setSurface(group, s.value);
+  s.addEventListener('change', e => { setSurface(group, e.target.value); save(group, e.target.value); });
+}
+$('btnInfo').addEventListener('click', () => $('info').classList.toggle('open'));
+$('btnInfoClose').addEventListener('click', () => $('info').classList.remove('open'));
+$('btnPresent').addEventListener('click', () => document.body.classList.add('present'));
+$('restore').addEventListener('click', () => document.body.classList.remove('present'));
+addEventListener('keydown', e => { if (e.key === 'Escape') document.body.classList.remove('present'); if (e.key === 'p' || e.key === 'P') document.body.classList.toggle('present'); });
+
+{ // Info-Panel: komplette Aufstellung Thekeneinrichtung (Maschinen, Mobiliar, Kleingeräte) mit Platz im Modell
+  const link = (t, u) => u ? `<a href="${u}" target="_blank" rel="noopener">${t}</a>` : t;
+  const LIST = [
+    ['Maschinen', [
+      ['Kaffeemaschine La Marzocco Linea PB 2', 'Seitenteil, direkt an der Ecke'],
+      ['Kaffeemühle Mahlkönig E65S GbW', 'auf dem Abklopfer, neben dem Siebträger'],
+      ['Kaffeemühle Decaf Eureka Atom 65', 'auf dem Abklopfer'],
+      ['Tiefkühltruhe 51 l (Froster)', 'Rückwand-Zeile, frei am offenen Ende (Deckel oben)'],
+      ['Kühltisch 90 cm (4 Schubladen)', 'Front, unter der Clean-Area'],
+      ['Gläser-Spülmaschine Winterhalter UC-S', 'Rückwand-Zeile, im Spülmaschinenschrank'],
+      ['Osmoseanlage AT Excellence-S', 'Rückwand-Zeile, unter der Ecke'],
+      ['Wasserfilter (Siebträger)', 'im Siebträgertisch (Projekt-Dokument)'],
+    ]],
+    ['Mobiliar', [
+      ['Spülschrank 0,8 m', 'Rückwand-Zeile, neben der Spülmaschine'],
+      ['Spülmaschinenschrank 0,6 m', 'Rückwand-Zeile, direkt nach der Ecke'],
+      ['Spülbecken mit Tassenspüle', 'im Spülschrank'],
+      ['Spülarmatur Talis M54', 'an der Spüle'],
+      ['Absperrventil F21', 'an der Spüle (für die Tassenspüle)'],
+      ['Gläserregal ×2', 'Rückwand über der Rückwand-Zeile, auf Nussbaum-Paneel (Inspo 1)'],
+      ['Mülleimer (Trennsystem)', 'Front, auf dem Grundboden des Arbeitstischs 1,0 m'],
+      ['Vitrine ohne Kühlung', 'Front, direkt nach der Ecke'],
+      ['Arbeitstisch Schubladen 1,2 m', 'Front, an der Ecke'],
+      ['Arbeitstisch 1 m', 'Front, am offenen Ende (Kasse)'],
+      ['Arbeitstisch Siebträger 1,6 m', 'Seitenteil, an der Ecke'],
+      ['Kaffeeabklopfer', 'auf dem Siebträgertisch'],
+    ]],
+    ['Kleingeräte', [
+      ['iPad für Kassensystem', 'Front, Kasse'],
+      ['Kartenterminal', 'Front, im Dock neben dem iPad'],
+      ['Wasserkocher ×2', 'Seitenteil, direkt nach der Ecke'],
+    ]],
+  ];
+  const tables = LIST.map(([title, rows]) => `<h3>${title}</h3><table><tr><th>Teil</th><th>Platz im Modell</th></tr>${rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}</table>`).join('');
+  const seg = (segs, name) => segs.map(s => `${s.gap ? 'frei' : s.it.name} ${fmt(s.w)}`).join(' · ');
+  $('infoBody').innerHTML = `
+    <div class="sum"><div><span>Front (Platte)</span><b>357 cm</b></div><div><span>Seitenteil außen</span><b>354 cm</b></div><div><span>Rückwand-Zeile</span><b>260,5 cm</b></div></div>
+    <h3>Belegung</h3>
+    <p class="seq"><b>Rückwand-Zeile ab der Außenkante:</b> ${seg(SEGS_BACK)}</p>
+    <p class="seq"><b>Seitenteil ab der Front:</b> ${seg(SEGS_SIDE)}</p>
+    <p class="seq"><b>Front ab der Ecke:</b> ${seg(SEGS_FRONT)}</p>
+    ${tables}
+    <h3>Optik</h3>
+    <ul>
+      <li>Inspo 2: gebürstete Edelstahlfront mit runder Ecke (R 60 cm), Papier-Pendelleuchten, Putz in Taupe, geschliffener Beton, weißer Blumenstrauß auf der Ecke.</li>
+      <li>Inspo 1: Holz-Glas-Vitrine, Nussbaum-Paneel mit Edelstahl-Rückwand und Gläserregalen, Nussbaum-Lautsprecher. Terrazzo ist als Front wählbar.</li>
+    </ul>
+    <h3>Annahmen &amp; Hinweise</h3>
+    <ul>
+      <li>U-Form an der Rückwand: Die Rückwand-Zeile ist Ecke (82) → Spülmaschine (60) → Spüle (80) → Froster frei am offenen Ende. Das Seitenteil (200) läuft von dort mit Wasserkocher → Abklopfer mit Mühlen → Siebträger nach vorne, dann folgt um die runde Ecke die Front.</li>
+      <li>Der Barista-Bereich ist ca. 2,75 × 2,0 m groß und von rechts zugänglich. Siebträger und Spüle sind beide mit einer Drehung erreichbar.</li>
+      <li>Die Ecke ist von vorne schwer zugänglich. Darunter steht die Osmoseanlage, die direkt an die Spülmaschine angeschlossen wird.</li>
+      <li>Der Froster hat den Deckel oben und steht deshalb ohne Platte darüber neben der Spüle.</li>
+      <li>Front-Unterbauten ab 42 cm nach der Ecke (wegen der Rundung): Schubladenschrank 1,2 m, Kühltisch 0,9 m (unter der Clean-Area), Arbeitstisch 1,0 m (Kasse, mit Mülltrennung).</li>
+      <li>Höhe der Platte 87 cm (Projekt-Dokument), Edelstahl durchgehend, 10 cm Aufkantung an der Rückwand.</li>
+    </ul>`;
+}
+
+/* =========================================================
+   RUNDGANG – selbst durch den Raum laufen (Computer + Handy)
+   Computer: Maus ziehen = umsehen, W A S D / Pfeiltasten = gehen, Shift = schneller, Klick auf den Boden = dorthin gehen
+   Handy:    Joystick = gehen, Wischen = umsehen, Tippen auf den Boden = dorthin gehen
+   ========================================================= */
+const EYE = 165, RAD = 24;                                   // Augenhöhe, Körperradius (cm)
+const walk = { on:false, yaw:0, pitch:-.1, pos:V(190, EYE, 300), keys:{}, joy:{ x:0, y:0 }, target:null, labels:false,
+               prev:'rechts', anim:null, moved:false, stuck:0, hover:null, hoverT:0, spot:'gast' };
+const SPOTS = {
+  gast:    { p:[192, 300],  yaw:0,              pitch:-.12 },   // vor der Theke, Blick auf Front + Rückwand
+  barista: { p:[178, -150], yaw:Math.PI * .47,  pitch:-.3  },   // im U, Blick auf Siebträger + Mühlen
+};
+const ROOM = { x0:-200, x1:700, z1:650 };                     // Raumhülle nur für den Rundgang (echte Raummaße noch offen)
+const WALK_BOUNDS = { x0:ROOM.x0 + RAD, x1:ROOM.x1 - RAD, z0:WALL_B + RAD, z1:ROOM.z1 - RAD };
+const walkRoom = new THREE.Group(); walkRoom.visible = false; scene.add(walkRoom);
+{ const kind = ($('optWall') && $('optWall').value) || 'taupe', D = ROOM.z1 - WALL_B, Wd = ROOM.x1 - ROOM.x0;
+  const wall = (w, x, z, ry) => { const m = sh(new THREE.Mesh(new THREE.PlaneGeometry(w, 330)), false, true); m.position.set(x, 165, z); m.rotation.y = ry; walkRoom.add(m); surface('wall', m, w, 330, kind); };
+  wall(D, ROOM.x0, (WALL_B + ROOM.z1) / 2, Math.PI / 2);
+  wall(D, ROOM.x1, (WALL_B + ROOM.z1) / 2, -Math.PI / 2);
+  wall(Wd, (ROOM.x0 + ROOM.x1) / 2, ROOM.z1, Math.PI);
+  box(2, 7, D, M.plinth, ROOM.x0 + 1, 3.5, (WALL_B + ROOM.z1) / 2, walkRoom);
+  box(2, 7, D, M.plinth, ROOM.x1 - 1, 3.5, (WALL_B + ROOM.z1) / 2, walkRoom);
+  box(Wd, 7, 2, M.plinth, (ROOM.x0 + ROOM.x1) / 2, 3.5, ROOM.z1 - 1, walkRoom); }
+const OBST = [                                                // Grundflächen [x0, x1, z0, z1]
+  [FRONT.x0, FRONT.x1, FRONT.zBack, FRONT.zFront + .5],       // Front (runde Ecke unten gesondert)
+  [SIDE.x0 - 5, SIDE.x1, WALL_B, SIDE.z0],                    // Seitenteil
+  [BACK.x0, BACK.x1, WALL_B, BACK.z0],                        // Rückwand-Zeile
+  [219, 257, WALL_B, -248],                                   // Froster
+];
+function blocked(x, z){
+  const B = WALK_BOUNDS;
+  if (x < B.x0 || x > B.x1 || z < B.z0 || z > B.z1) return true;
+  for (let i = 0; i < OBST.length; i++){
+    const [x0, x1, z0, z1] = OBST[i];
+    if (x > x0 - RAD && x < x1 + RAD && z > z0 - RAD && z < z1 + RAD){
+      if (i === 0 && x < CX && z > CZ){ if (Math.hypot(x - CX, z - CZ) < RC + 2.5 + RAD) return true; continue; }
+      return true;
+    }
+  }
+  return false;
+}
+function tryMove(dx, dz){
+  const p = walk.pos;
+  if (!blocked(p.x + dx, p.z + dz)){ p.x += dx; p.z += dz; return true; }
+  if (Math.abs(dx) > 1e-4 && !blocked(p.x + dx, p.z)){ p.x += dx; return true; }
+  if (Math.abs(dz) > 1e-4 && !blocked(p.x, p.z + dz)){ p.z += dz; return true; }
+  return false;
+}
+function walkFov(){
+  const a = safeAspect(), h = THREE.MathUtils.degToRad(84);
+  const v = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(h / 2) / a));
+  return Math.min(86, Math.max(60, v));
+}
+
+// Bodenmarkierung (Ziel beim Klicken / Tippen)
+const marker = new THREE.Group(); marker.visible = false; scene.add(marker);
+{ const mRing = new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:.9, depthWrite:false });
+  const mDisc = new THREE.MeshBasicMaterial({ color:0x161615, transparent:true, opacity:.18, depthWrite:false });
+  const r = new THREE.Mesh(new THREE.RingGeometry(15, 19, 48), mRing); r.rotation.x = -Math.PI / 2; marker.add(r);
+  const d = new THREE.Mesh(new THREE.CircleGeometry(15, 48), mDisc); d.rotation.x = -Math.PI / 2; d.position.y = -.05; marker.add(d);
+  marker.position.y = .6; marker.renderOrder = 5; }
+const ray = new THREE.Raycaster(); ray.params.Line.threshold = .5;
+const ndc = new THREE.Vector2();
+function floorPoint(cx, cy){
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const hits = ray.intersectObjects(scene.children, true);
+  const vis = o => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+  for (const h of hits){
+    if (!vis(h.object) || h.object.parent === marker) continue;
+    if (h.object.isLine) continue;
+    if (h.object !== floor) return null;
+    const p = h.point.clone();
+    // Ziel direkt an einem Möbel → so weit zurück, bis Platz ist
+    const dx = walk.pos.x - p.x, dz = walk.pos.z - p.z, d = Math.hypot(dx, dz) || 1;
+    for (let k = 0; k < 16 && blocked(p.x, p.z); k++){ p.x += dx / d * 5; p.z += dz / d * 5; }
+    return blocked(p.x, p.z) ? null : p;
+  }
+  return null;
+}
+
+function setSpot(name, animate=true){
+  const s = SPOTS[name] || SPOTS.gast; walk.spot = name; walk.target = null; marker.visible = false;
+  const toP = V(s.p[0], EYE, s.p[1]);
+  const toQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(s.pitch, s.yaw, 0, 'YXZ'));
+  const toF = walkFov();
+  if (animate) walk.anim = { t0:performance.now(), dur:1150, fromP:camera.position.clone(), fromQ:camera.quaternion.clone(), toP, toQ, fromF:camera.fov, toF };
+  else { walk.anim = null; camera.fov = toF; camera.updateProjectionMatrix(); }
+  walk.pos.copy(toP); walk.yaw = s.yaw; walk.pitch = s.pitch;
+  document.querySelectorAll('#walkbar [data-spot]').forEach(b => b.classList.toggle('on', b.dataset.spot === name));
+}
+function startWalk(spot='gast', animate=true){
+  if (!walk.on) walk.prev = current;
+  walk.on = true; tween = null; controls.enabled = false;
+  camera.rotation.order = 'YXZ';
+  document.body.classList.add('walking');
+  { const o = $('opts'), b = $('optsToggle'); if (o && !o.classList.contains('closed')){ o.classList.add('closed'); b.setAttribute('aria-expanded', 'false'); b.querySelector('i').textContent = '+'; } }
+  document.querySelectorAll('#views button').forEach(b => b.classList.toggle('on', b.dataset.v === 'rundgang'));
+  $('walkLbl').classList.toggle('on', walk.labels);
+  setSpot(spot, animate);
+  showHint();
+  try { if (location.hash !== '#rundgang') history.replaceState(null, '', '#rundgang'); } catch(e) {}
+}
+function leaveWalk(){
+  if (!walk.on) return;
+  walk.on = false; walk.anim = null; walk.keys = {}; walk.target = null; walk.joy.x = walk.joy.y = 0; marker.visible = false;
+  document.body.classList.remove('walking');
+  controls.enabled = true;
+  const fwd = V(0, 0, -1).applyQuaternion(camera.quaternion);
+  controls.target.copy(camera.position).addScaledVector(fwd, 160);
+}
+
+let hintTimer = 0;
+function showHint(){
+  const h = $('walkhint'), touch = document.body.classList.contains('touch');
+  h.innerHTML = touch
+    ? '<b>Joystick</b> = gehen · <b>Wischen</b> = umsehen<br><b>Auf den Boden tippen</b> = dorthin gehen'
+    : '<b>Maus ziehen</b> = umsehen · <b>W A S D</b> oder <b>Pfeiltasten</b> = gehen · <b>Shift</b> = schneller<br><b>Auf den Boden klicken</b> = dorthin gehen';
+  h.classList.remove('fade'); clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => h.classList.add('fade'), 9000);
+}
+
+function walkUpdate(dt){
+  if (walk.anim){
+    const a = walk.anim, k = Math.min(1, (performance.now() - a.t0) / a.dur), e = ease(k);
+    camera.position.lerpVectors(a.fromP, a.toP, e);
+    camera.quaternion.slerpQuaternions(a.fromQ, a.toQ, e);
+    camera.fov = a.fromF + (a.toF - a.fromF) * e; camera.updateProjectionMatrix();
+    if (k >= 1) walk.anim = null; else return;
+  }
+  const K = walk.keys;
+  let f = 0, s = 0, turn = 0;
+  if (K.KeyW || K.ArrowUp) f += 1;
+  if (K.KeyS || K.ArrowDown) f -= 1;
+  if (K.KeyD) s += 1;
+  if (K.KeyA) s -= 1;
+  if (K.ArrowLeft || K.KeyQ) turn += 1;
+  if (K.ArrowRight || K.KeyE) turn -= 1;
+  const jm = Math.hypot(walk.joy.x, walk.joy.y);
+  if (jm > .12){ f += -walk.joy.y; s += walk.joy.x * .85; }
+  walk.yaw += turn * 1.7 * dt;
+  const speed = (K.ShiftLeft || K.ShiftRight) ? 240 : 130;
+  const sin = Math.sin(walk.yaw), cos = Math.cos(walk.yaw);
+  let dx = 0, dz = 0;
+  if (f || s){
+    const len = Math.max(1, Math.hypot(f, s));
+    dx = (-sin * f + cos * s) / len * speed * dt;
+    dz = (-cos * f - sin * s) / len * speed * dt;
+    walk.target = null; marker.visible = false;
+  } else if (walk.target){
+    const tx = walk.target.x - walk.pos.x, tz = walk.target.z - walk.pos.z, d = Math.hypot(tx, tz);
+    if (d < 3){ walk.target = null; marker.visible = false; }
+    else {
+      const st = Math.min(d, speed * 1.2 * dt); dx = tx / d * st; dz = tz / d * st;
+    }
+  }
+  if (dx || dz){
+    const n = Math.max(1, Math.ceil(Math.hypot(dx, dz) / 5)); let ok = false;
+    for (let i = 0; i < n; i++) ok = tryMove(dx / n, dz / n) || ok;
+    if (walk.target){ walk.stuck = ok ? 0 : walk.stuck + dt; if (walk.stuck > .3){ walk.target = null; marker.visible = false; } }
+    if (!walk.moved){ walk.moved = true; clearTimeout(hintTimer); hintTimer = setTimeout(() => $('walkhint').classList.add('fade'), 3500); }
+  }
+  camera.position.set(walk.pos.x, EYE, walk.pos.z);
+  camera.rotation.set(walk.pitch, walk.yaw, 0, 'YXZ');
+}
+
+// ---- Eingaben: Maus / Finger auf der Szene
+{ const cv = renderer.domElement; let drag = null;
+  cv.addEventListener('pointerdown', e => {
+    if (!walk.on) return;
+    if (e.pointerType === 'touch') document.body.classList.add('touch');
+    if (drag) return;
+    drag = { id:e.pointerId, x:e.clientX, y:e.clientY, x0:e.clientX, y0:e.clientY, t:performance.now(), moved:false, type:e.pointerType };
+    try { cv.setPointerCapture(e.pointerId); } catch(err) {}
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!walk.on) return;
+    if (drag && e.pointerId === drag.id){
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+      if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > 7) drag.moved = true;
+      if (walk.anim) return;
+      const k = (drag.type === 'touch' ? .0058 : .0042) * camera.fov / 70;
+      walk.yaw += dx * k;
+      walk.pitch = Math.max(-1.25, Math.min(1.15, walk.pitch + dy * k));
+    } else if (e.pointerType === 'mouse'){ walk.hover = [e.clientX, e.clientY]; }
+  });
+  const up = e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const tap = !drag.moved && performance.now() - drag.t < 450; drag = null;
+    if (!walk.on || !tap || walk.anim) return;
+    const p = floorPoint(e.clientX, e.clientY);
+    if (p){ walk.target = p; marker.position.set(p.x, .6, p.z); marker.visible = true; walk.stuck = 0; }
+  };
+  cv.addEventListener('pointerup', up);
+  cv.addEventListener('pointercancel', e => { if (drag && e.pointerId === drag.id) drag = null; });
+  cv.addEventListener('pointerleave', () => { walk.hover = null; if (walk.on && !walk.target) marker.visible = false; });
+  cv.addEventListener('wheel', e => { if (!walk.on) return; e.preventDefault(); walk.target = null; marker.visible = false;
+    const st = Math.max(-40, Math.min(40, -e.deltaY * .25)), s = Math.sin(walk.yaw), c = Math.cos(walk.yaw);
+    for (let i = 0; i < 8; i++) tryMove(-s * st / 8, -c * st / 8); }, { passive:false });
+}
+// ---- Tastatur
+addEventListener('keydown', e => {
+  if (!walk.on || document.body.dataset.sec !== 'tresen') return;
+  if (e.target && e.target.closest && e.target.closest('select, input, textarea')) return;
+  walk.keys[e.code] = true;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+});
+addEventListener('keyup', e => { walk.keys[e.code] = false; });
+addEventListener('blur', () => { walk.keys = {}; });
+// ---- Joystick (Handy / Tablet)
+{ const joy = $('joy'), knob = $('joyKnob'); let jid = null, c = null;
+  const move = e => {
+    let dx = e.clientX - c.x, dy = e.clientY - c.y; const d = Math.hypot(dx, dy), m = c.r * .6;
+    if (d > m){ dx *= m / d; dy *= m / d; }
+    knob.style.transform = `translate(${dx}px, ${dy}px)`; walk.joy.x = dx / m; walk.joy.y = dy / m;
+  };
+  joy.addEventListener('pointerdown', e => { e.preventDefault(); jid = e.pointerId; const r = joy.getBoundingClientRect(); c = { x:r.left + r.width / 2, y:r.top + r.height / 2, r:r.width / 2 };
+    try { joy.setPointerCapture(e.pointerId); } catch(err) {} move(e); });
+  joy.addEventListener('pointermove', e => { if (e.pointerId === jid) move(e); });
+  const end = e => { if (e.pointerId !== jid) return; jid = null; walk.joy.x = walk.joy.y = 0; knob.style.transform = ''; };
+  joy.addEventListener('pointerup', end); joy.addEventListener('pointercancel', end);
+}
+// ---- Rundgang-Leiste
+document.querySelectorAll('#walkbar [data-spot]').forEach(b => b.addEventListener('click', () => setSpot(b.dataset.spot)));
+$('walkLbl').addEventListener('click', () => { walk.labels = !walk.labels; $('walkLbl').classList.toggle('on', walk.labels); });
+$('walkExit').addEventListener('click', () => goView(walk.prev || 'rechts'));
+
+// ---- Lageplan (Minimap)
+const mm = $('minimap'), mctx = mm.getContext('2d');
+const MM = { x0:-150, x1:560, z0:-345, z1:365 };
+function sizeMinimap(){ const d = Math.min(2, devicePixelRatio || 1), w = mm.clientWidth || 150; if (mm.width !== Math.round(w * d)){ mm.width = mm.height = Math.round(w * d); } }
+function drawMinimap(){
+  sizeMinimap();
+  const W = mm.width, s = W / (MM.x1 - MM.x0), X = x => (x - MM.x0) * s, Z = z => (z - MM.z0) * s;
+  mctx.clearRect(0, 0, W, W);
+  mctx.fillStyle = 'rgba(236,236,229,.94)'; mctx.fillRect(0, 0, W, W);
+  mctx.fillStyle = '#161615'; mctx.fillRect(X(-200), Z(WALL_B) - 3 * s * 4, X(700) - X(-200), 3 * s * 4);
+  mctx.fillStyle = '#8f8e86';
+  mctx.beginPath();
+  mctx.moveTo(X(CX), Z(FRONT.zFront)); mctx.lineTo(X(FRONT.x1), Z(FRONT.zFront)); mctx.lineTo(X(FRONT.x1), Z(FRONT.zBack));
+  mctx.lineTo(X(SIDE.x1), Z(FRONT.zBack)); mctx.lineTo(X(SIDE.x1), Z(BACK.z0)); mctx.lineTo(X(BACK.x1), Z(BACK.z0));
+  mctx.lineTo(X(BACK.x1), Z(WALL_B)); mctx.lineTo(X(FRONT.x0), Z(WALL_B)); mctx.lineTo(X(FRONT.x0), Z(CZ));
+  mctx.arc(X(CX), Z(CZ), (RC + 2.5) * s, Math.PI, Math.PI / 2, true); mctx.closePath(); mctx.fill();
+  mctx.fillRect(X(220), Z(-312), 35.5 * s, 63 * s);
+  if (walk.target){ mctx.strokeStyle = '#161615'; mctx.lineWidth = 1.2 * s * 5; mctx.beginPath(); mctx.arc(X(walk.target.x), Z(walk.target.z), 12 * s, 0, 7); mctx.stroke(); }
+  const px = Math.max(8, Math.min(W - 8, X(walk.pos.x))), pz = Math.max(8, Math.min(W - 8, Z(walk.pos.z)));
+  const ang = Math.atan2(-Math.cos(walk.yaw), -Math.sin(walk.yaw));
+  const hf = Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * camera.aspect);
+  const g = mctx.createRadialGradient(px, pz, 0, px, pz, W * .32);
+  g.addColorStop(0, 'rgba(22,22,21,.32)'); g.addColorStop(1, 'rgba(22,22,21,0)');
+  mctx.fillStyle = g; mctx.beginPath(); mctx.moveTo(px, pz); mctx.arc(px, pz, W * .32, ang - hf, ang + hf); mctx.closePath(); mctx.fill();
+  mctx.fillStyle = '#161615'; mctx.beginPath(); mctx.arc(px, pz, W * .035, 0, 7); mctx.fill();
+  mctx.strokeStyle = '#E6E6DD'; mctx.lineWidth = W * .012; mctx.stroke();
+}
+
+/* =========================================================
+   LOOP
+   ========================================================= */
+function onResize(){
+  if (!innerWidth || !innerHeight) return;
+  camera.aspect = safeAspect();
+  if (walk.on && !walk.anim) camera.fov = walkFov();
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight); labelRenderer.setSize(innerWidth, innerHeight);
+  if (!walk.on && !userMoved && !tween) goView(current, true);
+}
+addEventListener('resize', onResize);
+const tmp = new THREE.Vector3();
+let lastW = innerWidth, lastH = innerHeight;
+let lastT = 0, hoverT = 0;
+function frame(now){
+  requestAnimationFrame(frame);
+  const dt = Math.min(.05, Math.max(0, (now - (lastT || now)) / 1000)); lastT = now;
+  if (document.body.dataset.sec && document.body.dataset.sec !== 'tresen') return;      // anderer Bereich offen → pausieren
+  if (innerWidth !== lastW || innerHeight !== lastH){ lastW = innerWidth; lastH = innerHeight; onResize(); }
+  if (walk.on) walkUpdate(dt);
+  else {
+    if (tween){
+      const k = Math.min(1, (now - tween.t0)/tween.dur), e = ease(k);
+      camera.position.lerpVectors(tween.fromP, tween.toP, e); controls.target.lerpVectors(tween.fromT, tween.toT, e);
+      if (tween.fromF !== undefined && tween.fromF !== tween.toF){ camera.fov = tween.fromF + (tween.toF - tween.fromF) * e; camera.updateProjectionMatrix(); }
+      if (k >= 1){ camera.position.copy(tween.toP); controls.target.copy(tween.toT); if (tween.toF){ camera.fov = tween.toF; camera.updateProjectionMatrix(); } tween = null; }
+    }
+    controls.update();
+  }
+  const off = tmp.subVectors(camera.position, controls.target);
+  const planView = !walk.on && off.y / off.length() > .86;
+  const cam = camera.position;
+  if (walk.on){
+    setGroupVisible(chainView, false); setGroupVisible(chainPlan, false);
+    setLabelMode('normal');
+    setGroupVisible(labelGroup, walk.labels);
+    setGroupVisible(smallGroup, walk.labels && state.small);
+    setGroupVisible(unitLabelGroup, false);
+    if (walk.hover && !walk.target && !walk.anim && now - hoverT > 60){
+      hoverT = now; const p = floorPoint(walk.hover[0], walk.hover[1]); walk.hover = null;
+      if (p){ marker.position.set(p.x, .6, p.z); marker.visible = true; } else marker.visible = false;
+    }
+    drawMinimap();
+  } else {
+    marker.visible = false;
+    setGroupVisible(chainView, state.dims && !planView);
+    if (state.dims && !planView){ setGroupVisible(chainView.userData.gFront, cam.z > 45); setGroupVisible(chainView.userData.gSide, cam.x > 90 && cam.x > cam.z * .6); setGroupVisible(chainView.userData.gOut, cam.x < -20); setGroupVisible(chainView.userData.gBack, cam.z < 45 || cam.x > 420); }
+    setGroupVisible(chainPlan, state.dims && planView);
+    setLabelMode(planView ? 'plan' : 'normal');
+    setGroupVisible(labelGroup, state.labels && cam.y > 110);
+    setGroupVisible(smallGroup, state.labels && state.small && cam.y > 110 && !planView);
+    setGroupVisible(unitLabelGroup, state.labels && !planView && (state.units || cam.z < -40));
+  }
+  backWall.visible = cam.z > WALL_B + 2;
+  walkRoom.visible = walk.on;
+  panel.visible = state.panel;
+  shelves.visible = state.shelves && backWall.visible;
+  deco.visible = state.deco;
+  lamps.visible = cam.y < 300;
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+  declutter(labelMode !== 'plan' && (walk.on ? walk.labels : state.labels));
+}
+const startHash = location.hash.slice(1);
+goView(VIEWS[startHash] ? startHash : 'rechts', true);
+if (startHash === 'rundgang') startWalk('gast', false);
+requestAnimationFrame(frame);
+setTimeout(() => $('loading').classList.add('hide'), 250);
+
+</script>
+</body>
+</html>
