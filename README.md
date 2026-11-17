@@ -8,6 +8,6 @@ Interaktive 3D-Planung des Cafés im Altbau (ca. 90 m²): **Café mit Tresen**, 
 - **Personen:** Gäste, Barista, Köchin, Passanten und ein Baby auf 3D-Körpermodellen (Mann, Frau, Baby) mit Gelenken – sie sitzen, gehen, trinken, lesen Zeitung und schauen aufs Handy. Alle tragen Rollkragenpullover (saubere Nähte an Kragen, Bündchen, Saum), Gesichter selbst gemalt, keine Fotos.
 - **Straße:** fahrende und geparkte Autos nach einer 3D-Vorlage, Passanten.
 - **Ton:** Hintergrund-Aufnahmen für Café, Straße und Küche, je nach Standort überblendet (startet nach dem ersten Tippen/Klicken).
-- **Rundgang:** selbst durch die Räume laufen – am Computer mit Maus und W A S D, am Handy mit Joystick und Wischen. Look „Spielgrafik“ oder „Fein“ umschaltbar.
+- **Rundgang:** selbst durch die Räume laufen – am Computer mit Maus und W A S D, am Handy mit Joystick und Wischen.
 
 Die Seite besteht aus einer einzigen Datei (`index.html`) und läuft direkt über GitHub Pages.
