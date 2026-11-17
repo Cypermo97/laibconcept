@@ -1,9 +1,13 @@
 # LAIBconcept – Planung
 
-Interaktive Planung in vier Bereichen: **Tresen & Gastraum**, Sanitär, Außenbereich und **Küche**.
+Interaktive 3D-Planung des Cafés im Altbau (ca. 90 m²): **Café mit Tresen**, **Küche**, **Sanitär** und **Außenbereich mit Straße** – alles in einem Modell, durch alle Räume begehbar.
 
-- **Tresen & Gastraum:** 3D-Modell des Gastraums (Annahme 14 × 12 m) mit der U-Theke an der Rückwand, allen Geräten, Möbeln nach Finanzplan, Maßketten und umschaltbaren Oberflächen (u. a. Maserholz-Front mit Edelstahlsockel). Tageslicht fällt durch die Fensterfront. Im **Rundgang** läuft man selbst durch den Raum, am Computer mit Maus und W A S D, am Handy mit Joystick und Wischen.
-- **Küche:** erster Vorschlag nach Finanzplan.
-- Sanitär und Außenbereich folgen.
+- **Start:** Logo mit Ladebalken; die Simulation erscheint erst, wenn alles geladen und die Grafik vorbereitet ist.
+- **Café:** U-Theke mit allen Geräten und der Ausstattung aus dem Finanzplan, Gastraum mit Tischen, Altbau-Details (Fischgrätparkett, Stuck, Kassettentüren).
+- **Küche:** Geräte nach Finanzplan, Handwaschbecken nach Allpax-Vorlage, Brotschneidemaschine mit Sauerteiglaib.
+- **Personen:** Gäste, Barista, Köchin, Passanten und ein Baby auf 3D-Körpermodellen (Mann, Frau, Baby) mit Gelenken – sie sitzen, gehen, trinken, lesen Zeitung und schauen aufs Handy. Alle tragen Rollkragenpullover (saubere Nähte an Kragen, Bündchen, Saum), Gesichter selbst gemalt, keine Fotos.
+- **Straße:** fahrende und geparkte Autos nach einer 3D-Vorlage, Passanten.
+- **Ton:** Hintergrund-Aufnahmen für Café, Straße und Küche, je nach Standort überblendet (startet nach dem ersten Tippen/Klicken).
+- **Rundgang:** selbst durch die Räume laufen – am Computer mit Maus und W A S D, am Handy mit Joystick und Wischen. Look „Spielgrafik“ oder „Fein“ umschaltbar.
 
 Die Seite besteht aus einer einzigen Datei (`index.html`) und läuft direkt über GitHub Pages.
